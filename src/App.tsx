@@ -1,27 +1,27 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
-import Login from "./pages/auth/Login"; // Make sure this file exists
-import Dashboard from "./pages/student/Dashboard"; // Make sure this file exists
+import DashboardLayout from "./components/layout/DashboardLayout"; 
+import Login from "./pages/auth/Login";           
+import Dashboard from "./pages/student/Dashboard"; 
 
 function App() {
   return (
     <Routes>
-      {/* --- Public Routes --- */}
-      {/* Anyone can visit these */}
+      {/* Public Route */}
       <Route path="/login" element={<Login />} />
 
-      {/* --- Protected Routes --- */}
-      {/* The ProtectedRoute wraps these. If you aren't logged in, you can't get in. */}
+      {/* Protected Area */}
       <Route element={<ProtectedRoute />}>
-        {/* If user goes to "/", automatically send them to Dashboard */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         
-        {/* The actual Dashboard page */}
-        <Route path="/dashboard" element={<Dashboard />} />
+        {/* Layout Wrapper (This fixes the 'unused import' error) */}
+        <Route element={<DashboardLayout />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+        </Route>
+
       </Route>
 
-      {/* --- 404 Fallback --- */}
-      {/* If they type a random URL, send them back to login */}
+      {/* 404 Fallback */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

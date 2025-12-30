@@ -24,17 +24,18 @@ export default function DashboardLayout() {
         </div>
         
         <nav className="flex-1 p-4 space-y-2">
-          {/* Navigation Links would go here */}
-          <div className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md">
+          {/* This is where your menu links go */}
+          <div className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md font-medium">
             Dashboard
           </div>
-          <div className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-md cursor-pointer">
+          <div className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-md cursor-pointer transition-colors">
              Attendance History
           </div>
         </nav>
 
         <div className="p-4 border-t">
           <div className="flex items-center gap-3 mb-4">
+            {/* User Initials Avatar */}
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
               {currentUser?.email?.charAt(0).toUpperCase()}
             </div>
@@ -45,7 +46,7 @@ export default function DashboardLayout() {
           </div>
           <button 
             onClick={handleLogout}
-            className="w-full text-sm text-red-600 hover:text-red-700 hover:bg-red-50 py-2 rounded-md transition-colors"
+            className="w-full text-sm text-red-600 hover:text-red-700 hover:bg-red-50 py-2 rounded-md transition-colors text-left px-2"
           >
             Sign Out
           </button>
@@ -54,7 +55,9 @@ export default function DashboardLayout() {
 
       {/* --- MAIN CONTENT AREA (Dynamic) --- */}
       <main className="flex-1 overflow-auto p-8">
-        {/* <Outlet /> renders the child route (Dashboard, Profile, etc.) here */}
+        {/* <Outlet /> is the magic tag. 
+            It renders whatever page we are currently on (Dashboard, History, etc.) 
+            inside this layout. */}
         <Outlet />
       </main>
     </div>
