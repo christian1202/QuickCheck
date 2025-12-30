@@ -1,8 +1,9 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
-import DashboardLayout from "./components/layout/DashboardLayout"; // 👈 We imported it...
+import DashboardLayout from "./components/layout/DashboardLayout"; 
 import Login from "./pages/auth/Login";
 import Dashboard from "./pages/student/Dashboard";
+import CreateEvent from "./pages/admin/CreateEvent";
 
 function App() {
   return (
@@ -16,7 +17,7 @@ function App() {
            <Route path="/dashboard" element={<Dashboard />} />
         </Route>
       </Route>
-
+      <Route path="/admin/create-event" element={<CreateEvent />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
