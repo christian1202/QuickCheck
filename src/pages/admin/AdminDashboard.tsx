@@ -9,8 +9,8 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [stats, setStats] = useState<{ name: string; value: number }[]>([]);
-    const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const COLORS = ["#0088FE", "#FF8042"];
 
@@ -95,7 +95,6 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-700">Master List</h2>
-          {/* We will add a Link here later to go to Add Member page */}
         </div>
         
         <div className="overflow-x-auto">
@@ -104,7 +103,6 @@ export default function AdminDashboard() {
               <tr className="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
                 <th className="px-6 py-3 font-medium">Name</th>
                 <th className="px-6 py-3 font-medium">Birthdate</th>
-                {/* 👇 NEW HEADER */}
                 <th className="px-6 py-3 font-medium">Baptism Date</th>
                 <th className="px-6 py-3 font-medium">Age</th>
                 <th className="px-6 py-3 font-medium">Category</th>
@@ -116,7 +114,7 @@ export default function AdminDashboard() {
             <tbody className="divide-y divide-gray-100">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                     No members found. Add some users to see data.
                   </td>
                 </tr>
@@ -127,24 +125,21 @@ export default function AdminDashboard() {
                   
                   return (
                     <tr key={user.uid} className="hover:bg-gray-50 transition-colors">
+                      {/* 1. Name */}
                       <td className="px-6 py-4 font-medium text-gray-900">{user.fullName || user.email}</td>
+                      
+                      {/* 2. Birthdate */}
                       <td className="px-6 py-4 text-gray-600">{user.birthdate || "N/A"}</td>
                       
-                      {/* 👇 NEW CELL: BAPTISM DATE */}
+                      {/* 3. Baptism Date */}
                       <td className="px-6 py-4 text-gray-600">
                         {user.baptismDate ? user.baptismDate : <span className="text-gray-400 italic">Not set</span>}
                       </td>
-                      
-                      <td className="px-6 py-4">
-                        <button 
-                        onClick={() => navigate(`/admin/edit-member/${user.uid}`)}
-                        className="text-blue-600 hover:text-blue-900 font-medium text-sm"
-                        >
-                        Edit
-                        </button>
-                    </td>    
 
+                      {/* 4. Age */}
                       <td className="px-6 py-4 text-gray-600">{age !== null ? age : "-"}</td>
+                      
+                      {/* 5. Category */}
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                           category === 'Senior' ? 'bg-purple-100 text-purple-700' : 
@@ -153,7 +148,11 @@ export default function AdminDashboard() {
                           {category}
                         </span>
                       </td>
+
+                      {/* 6. Duty */}
                       <td className="px-6 py-4 text-gray-600">{user.duty || "None"}</td>
+
+                      {/* 7. Status */}
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           user.status === 'Visitor' ? 'bg-yellow-100 text-yellow-800' : 
@@ -162,6 +161,16 @@ export default function AdminDashboard() {
                         }`}>
                           {user.status || "Active"}
                         </span>
+                      </td>
+
+                      {/* 8. Actions (FIXED: Moved to end) */}
+                      <td className="px-6 py-4">
+                        <button 
+                          onClick={() => navigate(`/admin/edit-member/${user.uid}`)}
+                          className="text-blue-600 hover:text-blue-900 font-medium text-sm"
+                        >
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   );

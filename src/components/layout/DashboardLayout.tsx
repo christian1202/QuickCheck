@@ -1,64 +1,78 @@
-import { Outlet, useNavigate } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
-import { auth } from "../../lib/firebase";
+import { Outlet, Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext"; // Ensure you have this hook
+import { LogOut, LayoutDashboard, CalendarPlus, UserPlus, Users } from "lucide-react"; // Icons
 
 export default function DashboardLayout() {
-  const { currentUser } = useAuth();
+  const { user, logout } = useAuth(); // Get current user
   const navigate = useNavigate();
 
+  // 👇 Check if user is admin (You can also check user.role from database if available)
+  // For now, let's assume specific emails are admins, or you can add a generic check.
+  const isAdmin = user?.email === "admin@gmail.com"; 
+
   const handleLogout = async () => {
-    try {
-      await auth.signOut();
-      navigate("/login");
-    } catch (error) {
-      console.error("Failed to log out", error);
-    }
+    await logout();
+    navigate("/login");
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* --- SIDEBAR (Fixed Left) --- */}
-      <aside className="w-64 bg-white shadow-md flex flex-col">
-        <div className="p-6 border-b">
+    <div className="flex h-screen bg-gray-50">
+      {/* SIDEBAR START */}
+      <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
+        <div className="p-6">
           <h1 className="text-2xl font-bold text-blue-600">QuickCheck</h1>
         </div>
-        
-        <nav className="flex-1 p-4 space-y-2">
-          {/* This is where your menu links go */}
-          <div className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md font-medium">
-            Dashboard
-          </div>
-          <div className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-md cursor-pointer transition-colors">
-             Attendance History
-          </div>
+
+        <nav className="flex-1 px-4 space-y-2">
+          
+          {/* 1. SHARED LINKS (Everyone sees this) */}
+          <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors">
+            <LayoutDashboard size={20} />
+            <span>My Dashboard</span>
+          </Link>
+
+          {/* 2. ADMIN ONLY LINKS */}
+          {isAdmin && (
+            <>
+              <div className="pt-4 pb-2">
+                <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin Tools</p>
+              </div>
+
+              <Link to="/admin/dashboard" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors">
+                <Users size={20} />
+                <span>Master List</span>
+              </Link>
+
+              <Link to="/admin/create-event" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors">
+                <CalendarPlus size={20} />
+                <span>Create Event</span>
+              </Link>
+
+              <Link to="/admin/add-member" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors">
+                <UserPlus size={20} />
+                <span>Add Member</span>
+              </Link>
+            </>
+          )}
         </nav>
 
-        <div className="p-4 border-t">
-          <div className="flex items-center gap-3 mb-4">
-            {/* User Initials Avatar */}
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-              {currentUser?.email?.charAt(0).toUpperCase()}
-            </div>
-            <div className="text-sm overflow-hidden">
-              <p className="font-medium text-gray-900 truncate">{currentUser?.email}</p>
-              <p className="text-xs text-gray-500">Student</p>
-            </div>
-          </div>
+        <div className="p-4 border-t border-gray-100">
           <button 
             onClick={handleLogout}
-            className="w-full text-sm text-red-600 hover:text-red-700 hover:bg-red-50 py-2 rounded-md transition-colors text-left px-2"
+            className="flex w-full items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
-            Sign Out
+            <LogOut size={20} />
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>
+      {/* SIDEBAR END */}
 
-      {/* --- MAIN CONTENT AREA (Dynamic) --- */}
-      <main className="flex-1 overflow-auto p-8">
-        {/* <Outlet /> is the magic tag. 
-            It renders whatever page we are currently on (Dashboard, History, etc.) 
-            inside this layout. */}
-        <Outlet />
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 overflow-auto">
+        <div className="p-8">
+          <Outlet /> {/* This is where your Dashboard/Admin pages appear */}
+        </div>
       </main>
     </div>
   );
