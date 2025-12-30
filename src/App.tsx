@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
-import Login from "./pages/Login"; // Make sure this file exists
-import Dashboard from "./pages/Dashboard"; // Make sure this file exists
+import Login from "./pages/auth/Login"; // Make sure this file exists
+import Dashboard from "./pages/student/Dashboard"; // Make sure this file exists
 
 function App() {
   return (
