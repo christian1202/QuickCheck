@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { AdminService } from "../../services/adminService";
-// FIX 1: Use 'import type'
 import type { UserProfile } from "../../types";
 import { calculateAge, getUserCategory } from "../../lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
@@ -22,7 +21,7 @@ export default function AdminDashboard() {
       const allUsers = await AdminService.getAllUsers();
       setUsers(allUsers);
 
-      // Dummy stats for now
+      // Dummy stats (You can connect real attendance later)
       setStats([
         { name: "Present", value: 15 },
         { name: "Absent", value: 5 },
@@ -35,7 +34,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // FIX 2: Calculate counts here instead of inside the JSX to avoid parser errors
   const seniorCount = users.filter(u => getUserCategory(calculateAge(u.birthdate)) === 'Senior').length;
   const juniorCount = users.filter(u => getUserCategory(calculateAge(u.birthdate)) === 'Junior').length;
 
@@ -47,8 +45,6 @@ export default function AdminDashboard() {
 
       {/* --- TOP SECTION: CHARTS --- */}
       <div className="grid md:grid-cols-2 gap-6">
-        
-        {/* Card 1: Attendance Chart */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Today's Attendance</h2>
           <div className="h-64">
@@ -75,7 +71,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Card 2: Demographics Stats */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center space-y-6">
           <div className="text-center">
             <p className="text-gray-500 text-sm uppercase tracking-wide font-semibold">Total Members</p>
@@ -87,7 +82,6 @@ export default function AdminDashboard() {
               <p className="text-xl font-bold text-gray-800">{seniorCount}</p>
             </div>
             <div>
-              {/* Using &lt; ensures we don't break the parser with a less-than sign */}
               <p className="text-gray-500 text-xs uppercase">Juniors (&lt;25)</p>
               <p className="text-xl font-bold text-gray-800">{juniorCount}</p>
             </div>
@@ -99,9 +93,7 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-700">Master List</h2>
-          <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-            + Add New Member
-          </button>
+          {/* We will add a Link here later to go to Add Member page */}
         </div>
         
         <div className="overflow-x-auto">
@@ -110,6 +102,8 @@ export default function AdminDashboard() {
               <tr className="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
                 <th className="px-6 py-3 font-medium">Name</th>
                 <th className="px-6 py-3 font-medium">Birthdate</th>
+                {/* 👇 NEW HEADER */}
+                <th className="px-6 py-3 font-medium">Baptism Date</th>
                 <th className="px-6 py-3 font-medium">Age</th>
                 <th className="px-6 py-3 font-medium">Category</th>
                 <th className="px-6 py-3 font-medium">Duty</th>
@@ -119,11 +113,10 @@ export default function AdminDashboard() {
             <tbody className="divide-y divide-gray-100">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                     No members found. Add some users to see data.
                   </td>
                 </tr>
-                
               ) : (
                 users.map((user) => {
                   const age = calculateAge(user.birthdate);
@@ -133,6 +126,12 @@ export default function AdminDashboard() {
                     <tr key={user.uid} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 font-medium text-gray-900">{user.fullName || user.email}</td>
                       <td className="px-6 py-4 text-gray-600">{user.birthdate || "N/A"}</td>
+                      
+                      {/* 👇 NEW CELL: BAPTISM DATE */}
+                      <td className="px-6 py-4 text-gray-600">
+                        {user.baptismDate ? user.baptismDate : <span className="text-gray-400 italic">Not set</span>}
+                      </td>
+
                       <td className="px-6 py-4 text-gray-600">{age !== null ? age : "-"}</td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -144,8 +143,12 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 text-gray-600">{user.duty || "None"}</td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                            {user.status || "Active"} 
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          user.status === 'Visitor' ? 'bg-yellow-100 text-yellow-800' : 
+                          user.status === 'Inactive' ? 'bg-red-100 text-red-800' : 
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {user.status || "Active"}
                         </span>
                       </td>
                     </tr>
