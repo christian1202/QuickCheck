@@ -5,12 +5,21 @@ import { useNavigate } from "react-router-dom";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 
-// 1. Validation Schema
+// 1. Validation Rules
 const memberSchema = z.object({
   fullName: z.string().min(2, "Name is too short"),
   birthdate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid birthdate" }),
+  
+  // NEW: Baptism Date (Optional, because new converts might not be baptized yet)
+  baptismDate: z.string().optional(),
+
+  // UPDATED: Duty is now just a string (Free text), optional
   duty: z.string().optional(),
-  email: z.string().email().optional().or(z.literal('')), // Optional email
+
+  // NEW: Status is free text (e.g., "Regular", "Visitor", "Backslider")
+  status: z.string().min(1, "Status is required"),
+
+  email: z.string().email().optional().or(z.literal('')),
 });
 
 type MemberFormInputs = z.infer<typeof memberSchema>;
@@ -24,15 +33,17 @@ export default function AddMember() {
     formState: { errors, isSubmitting },
   } = useForm<MemberFormInputs>({
     resolver: zodResolver(memberSchema),
+    defaultValues: {
+      status: "Regular" // Default value to save time
+    }
   });
 
   const onSubmit = async (data: MemberFormInputs) => {
     try {
-      // Save to 'users' collection
       await addDoc(collection(db, "users"), {
         ...data,
         createdAt: new Date().toISOString(),
-        role: 'student' // Default role
+        role: 'student' 
       });
       
       alert("Member added successfully!");
@@ -59,30 +70,51 @@ export default function AddMember() {
           {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName.message}</p>}
         </div>
 
-        {/* Birthdate (Crucial for Senior/Junior Logic) */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Birthdate</label>
-          <input
-            type="date"
-            {...register("birthdate")}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-          {errors.birthdate && <p className="text-red-500 text-sm mt-1">{errors.birthdate.message}</p>}
+        {/* Date Row (Birthdate + Baptism) */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Birthdate</label>
+            <input
+              type="date"
+              {...register("birthdate")}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {errors.birthdate && <p className="text-red-500 text-sm mt-1">{errors.birthdate.message}</p>}
+          </div>
+
+          {/* NEW: Baptism Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Baptism Date (Optional)</label>
+            <input
+              type="date"
+              {...register("baptismDate")}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         </div>
 
-        {/* Duty / Ministry */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Ministry / Duty (Optional)</label>
-          <select
-            {...register("duty")}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">None</option>
-            <option value="Music Team">Music Team</option>
-            <option value="Usher">Usher</option>
-            <option value="Multimedia">Multimedia</option>
-            <option value="Kids Ministry">Kids Ministry</option>
-          </select>
+        {/* Info Row (Duty + Status) */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* UPDATED: Duty (Free Text) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Duty / Ministry</label>
+            <input
+              {...register("duty")}
+              placeholder="e.g. Music Team"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* NEW: Status (Free Text) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Status</label>
+            <input
+              {...register("status")}
+              placeholder="e.g. Regular, Visitor"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+             {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status.message}</p>}
+          </div>
         </div>
 
         <button

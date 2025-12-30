@@ -22,6 +22,8 @@ export interface UserProfile {
   duty?: string;             // e.g., "Choir", "Usher"
   adminStatus?: string;      // The custom status admin fills out
   birthdate?: string;        // ISO Date String (YYYY-MM-DD)
+  status?: string; // 👈 Add this line
+ 
   
   // NOTE: Age and Category are NOT stored. 
   // We calculate them in the UI/Service layer.

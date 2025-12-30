@@ -123,6 +123,7 @@ export default function AdminDashboard() {
                     No members found. Add some users to see data.
                   </td>
                 </tr>
+                
               ) : (
                 users.map((user) => {
                   const age = calculateAge(user.birthdate);
@@ -144,7 +145,7 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-gray-600">{user.duty || "None"}</td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                          Active
+                            {user.status || "Active"} 
                         </span>
                       </td>
                     </tr>
