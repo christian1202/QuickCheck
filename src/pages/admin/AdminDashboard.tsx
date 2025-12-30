@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { AdminService } from "../../services/adminService";
-import { UserProfile } from "../../types";
+// FIX 1: Use 'import type'
+import type { UserProfile } from "../../types";
 import { calculateAge, getUserCategory } from "../../lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<UserProfile[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [stats, setStats] = useState<{ name: string; value: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Colors for the Pie Chart
-  const COLORS = ["#0088FE", "#FF8042"]; // Blue for Present, Orange for Absent
+  const COLORS = ["#0088FE", "#FF8042"];
 
   useEffect(() => {
     loadAdminData();
@@ -18,12 +19,10 @@ export default function AdminDashboard() {
 
   const loadAdminData = async () => {
     try {
-      // 1. Fetch all users
       const allUsers = await AdminService.getAllUsers();
       setUsers(allUsers);
 
-      // 2. Fetch stats (This is dummy data for now, we will connect it to real attendance next)
-      // In a real scenario, you'd fetch today's attendance records and compare.
+      // Dummy stats for now
       setStats([
         { name: "Present", value: 15 },
         { name: "Absent", value: 5 },
@@ -36,6 +35,10 @@ export default function AdminDashboard() {
     }
   };
 
+  // FIX 2: Calculate counts here instead of inside the JSX to avoid parser errors
+  const seniorCount = users.filter(u => getUserCategory(calculateAge(u.birthdate)) === 'Senior').length;
+  const juniorCount = users.filter(u => getUserCategory(calculateAge(u.birthdate)) === 'Junior').length;
+
   if (loading) return <div className="p-8">Loading Admin Panel...</div>;
 
   return (
@@ -44,7 +47,8 @@ export default function AdminDashboard() {
 
       {/* --- TOP SECTION: CHARTS --- */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Card 1: Attendance Overview */}
+        
+        {/* Card 1: Attendance Chart */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Today's Attendance</h2>
           <div className="h-64">
@@ -71,7 +75,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Card 2: Quick Stats */}
+        {/* Card 2: Demographics Stats */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center space-y-6">
           <div className="text-center">
             <p className="text-gray-500 text-sm uppercase tracking-wide font-semibold">Total Members</p>
@@ -80,15 +84,12 @@ export default function AdminDashboard() {
           <div className="flex justify-around text-center">
             <div>
               <p className="text-gray-500 text-xs uppercase">Seniors (25+)</p>
-              <p className="text-xl font-bold text-gray-800">
-                {users.filter(u => getUserCategory(calculateAge(u.birthdate)) === 'Senior').length}
-              </p>
+              <p className="text-xl font-bold text-gray-800">{seniorCount}</p>
             </div>
             <div>
-              <p className="text-gray-500 text-xs uppercase">Juniors (<25)</p>
-              <p className="text-xl font-bold text-gray-800">
-                {users.filter(u => getUserCategory(calculateAge(u.birthdate)) === 'Junior').length}
-              </p>
+              {/* Using &lt; ensures we don't break the parser with a less-than sign */}
+              <p className="text-gray-500 text-xs uppercase">Juniors (&lt;25)</p>
+              <p className="text-xl font-bold text-gray-800">{juniorCount}</p>
             </div>
           </div>
         </div>
