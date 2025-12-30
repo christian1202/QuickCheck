@@ -56,7 +56,25 @@ export const AttendanceService = {
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
 
+    
+
     const docData = snapshot.docs[0];
     return { id: docData.id, ...docData.data() } as AttendanceRecord;
+  },
+
+  async getTodayStats() {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Count records for today that are 'present' or 'late'
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where("date", "==", today),
+      where("status", "in", ["present", "late"])
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.size; // Returns the number of people present
   }
+
+  
 };

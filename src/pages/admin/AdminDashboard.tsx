@@ -4,6 +4,7 @@ import type { UserProfile } from "../../types";
 import { calculateAge, getUserCategory } from "../../lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useNavigate } from "react-router-dom";
+import { AttendanceService } from "../../services/attendanceService";
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -21,12 +22,15 @@ export default function AdminDashboard() {
   const loadAdminData = async () => {
     try {
       const allUsers = await AdminService.getAllUsers();
-      setUsers(allUsers);
+        setUsers(allUsers);
+        
+        const presentCount = await AttendanceService.getTodayStats();
+        const absentCount = allUsers.length - presentCount;
 
       // Dummy stats (You can connect real attendance later)
       setStats([
-        { name: "Present", value: 15 },
-        { name: "Absent", value: 5 },
+        { name: "Present", value: presentCount }, // 👈 Use variable
+        { name: "Absent", value: absentCount },   // 👈 Use variable
       ]);
       
     } catch (error) {

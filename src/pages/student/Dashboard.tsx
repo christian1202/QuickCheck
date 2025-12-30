@@ -40,11 +40,14 @@ export default function Dashboard() {
   const handleTimeIn = async (eventId: string) => {
     if (!currentUser) return;
     try {
+      // 👇 USE YOUR FUNCTION NAME HERE ('timeIn')
       await AttendanceService.timeIn(currentUser.uid, eventId);
-      await loadDashboard();
-    } catch (error) { 
-       console.error(error);
-       alert("Failed to time in");
+      
+      await loadDashboard(); // Refresh to show green button
+      alert("✅ Time In Successful!");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to time in. You might be already checked in.");
     }
   };
 
