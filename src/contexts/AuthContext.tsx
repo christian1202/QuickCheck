@@ -1,18 +1,21 @@
 import { createContext, useContext, useEffect, useState, useMemo } from "react";
-// FIX 1: Use 'import type' (Solves 'verbatimModuleSyntax' error)
 import type { ReactNode } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+// 1. Add 'signOut' to imports
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import type { User } from "firebase/auth"; 
 import { auth } from "../lib/firebase";
 
 interface AuthContextType {
   currentUser: User | null;
+  // 2. Add the alias 'user' so Sidebar works
+  user: User | null; 
   loading: boolean;
+  // 3. Add 'logout' function type
+  logout: () => Promise<void>; 
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// FIX 2: Add 'Readonly' (Solves SonarQube warning)
 export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,10 +28,17 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     return unsubscribe;
   }, []);
 
-  // FIX 3: Wrap in useMemo (Solves performance warning)
+  // 4. Create the logout function
+  const logout = async () => {
+    await signOut(auth);
+  };
+
   const value = useMemo(() => ({
     currentUser,
-    loading
+    // 5. Map 'user' to 'currentUser' so both names work
+    user: currentUser, 
+    loading,
+    logout
   }), [currentUser, loading]);
 
   return (
@@ -38,7 +48,6 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   );
 }
 
-// FIX 4: Disable Fast Refresh warning for this specific export
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
