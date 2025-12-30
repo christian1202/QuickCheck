@@ -7,12 +7,12 @@ import { AdminService } from "../../services/adminService";
 // 1. Validation Rules (The "Anti-Spaghetti" Logic)
 const eventSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters" }),
+  // Parse the date string to ensure it's valid
   date: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
   startTime: z.string().min(1, { message: "Start time is required" }),
   endTime: z.string().min(1, { message: "End time is required" }),
-  type: z.enum(["service", "meeting", "special"], { 
-    errorMap: () => ({ message: "Please select a valid event type" }) 
-  }),
+  // FIX: Remove the second argument object. Just list the allowed values.
+  type: z.enum(["service", "meeting", "special"]), 
 });
 
 type EventFormInputs = z.infer<typeof eventSchema>;
