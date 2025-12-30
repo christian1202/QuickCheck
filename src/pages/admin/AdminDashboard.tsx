@@ -3,12 +3,14 @@ import { AdminService } from "../../services/adminService";
 import type { UserProfile } from "../../types";
 import { calculateAge, getUserCategory } from "../../lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { useNavigate } from "react-router-dom";
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [stats, setStats] = useState<{ name: string; value: number }[]>([]);
-  const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
   const COLORS = ["#0088FE", "#FF8042"];
 
@@ -108,6 +110,7 @@ export default function AdminDashboard() {
                 <th className="px-6 py-3 font-medium">Category</th>
                 <th className="px-6 py-3 font-medium">Duty</th>
                 <th className="px-6 py-3 font-medium">Status</th>
+                <th className="px-6 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -131,6 +134,15 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-gray-600">
                         {user.baptismDate ? user.baptismDate : <span className="text-gray-400 italic">Not set</span>}
                       </td>
+                      
+                      <td className="px-6 py-4">
+                        <button 
+                        onClick={() => navigate(`/admin/edit-member/${user.uid}`)}
+                        className="text-blue-600 hover:text-blue-900 font-medium text-sm"
+                        >
+                        Edit
+                        </button>
+                    </td>    
 
                       <td className="px-6 py-4 text-gray-600">{age !== null ? age : "-"}</td>
                       <td className="px-6 py-4">

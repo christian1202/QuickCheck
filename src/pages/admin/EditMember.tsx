@@ -44,12 +44,12 @@ export default function EditMember() {
         if (snapshot.exists()) {
           const data = snapshot.data() as UserProfile;
           // Pre-fill the form fields
-          setValue("fullName", data.fullName);
+          setValue("fullName", data.fullName || "");
           setValue("birthdate", data.birthdate || "");
-          setValue("baptismDate", data.baptismDate || "");
-          setValue("duty", data.duty || "");
-          setValue("status", data.status || "Regular");
-          setValue("email", data.email || "");
+          setValue("baptismDate", data.baptismDate || ""); // 👈 Fixed
+          setValue("duty", data.duty || "");               // 👈 Fixed
+          setValue("status", data.status || "Regular");    // 👈 Fixed
+          setValue("email", data.email || "");             // 👈 Fixed
         } else {
           alert("Member not found!");
           navigate("/admin/dashboard");
