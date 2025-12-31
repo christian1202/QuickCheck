@@ -7,13 +7,15 @@ import {
   updateDoc,
   doc,
   limit,
-  getDoc
+  getDoc,
+  deleteDoc
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import type { AttendanceRecord } from "../types";
-import { deleteDoc } from "firebase/firestore";
+
 
 const COLLECTION_NAME = "attendance_logs";
+export type StatusType = 'present' | 'late' | 'absent';
 
 export const AttendanceService = {
   // 1. Time In
@@ -138,10 +140,18 @@ export const AttendanceService = {
       await addDoc(collection(db, COLLECTION_NAME), {
         userId,
         date: dateString,
+        timeOut: null,
+        status: status,
         timeIn: new Date().toISOString(), // Just use current time as placeholder
-        status
+        markedBy: 'admin'
       });
     }
+  },
+
+  // 5. Delete Record
+  deleteRecord: async (recordId: string) => {
+    const ref = doc(db, "attendance", recordId);
+    await deleteDoc(ref);
   }
 
 

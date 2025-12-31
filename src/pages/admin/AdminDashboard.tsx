@@ -5,12 +5,10 @@ import type { UserProfile } from "../../types";
 import { calculateAge, getUserCategory } from "../../lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useNavigate } from "react-router-dom";
-// 👇 Import the Trash Icon
 import { Trash2 } from "lucide-react";
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<UserProfile[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [stats, setStats] = useState<{ name: string; value: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();

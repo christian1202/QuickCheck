@@ -84,6 +84,41 @@ export const AdminService = {
     await updateDoc(docRef, updatedData);
   },
 
+  // 10. Get Single User
+  getUser: async (userId: string): Promise<UserProfile | null> => {
+    try {
+      const userRef = doc(db, "users", userId);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        return { uid: userSnap.id, ...userSnap.data() } as UserProfile;
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      throw error;
+    }
+  },
+  // 11. Delete Attendance Record
+  deleteRecord: async (recordId: string) => {
+    try {
+      const recordRef = doc(db, "attendance", recordId);
+      await deleteDoc(recordRef);
+    } catch (error) {
+      console.error("Error deleting record:", error);
+      throw error;
+    }
+  },
+
+  
+  // 12. Update Attendance Status
+  // (Optional: Ensure updateStatus is robust)
+  updateStatus: async (recordId: string, newStatus: string) => {
+    const recordRef = doc(db, "attendance", recordId);
+    await updateDoc(recordRef, { status: newStatus });
+  }
+
   
 
 };

@@ -3,6 +3,7 @@ import ProtectedRoute from "./components/layout/ProtectedRoute";
 import DashboardLayout from "./components/layout/DashboardLayout"; 
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import StudentDashboard from "./pages/student/StudentDashboard";
 import Dashboard from "./pages/student/Dashboard";
 import CreateEvent from "./pages/admin/CreateEvent";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -34,6 +35,7 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/history" element={<MyHistory />} />
+          <Route path="/secretary-dashboard" element={<StudentDashboard />} />
 
            {/* Admin Pages */}
           <Route path="/admin/dashboard" element={<AdminDashboard />} />

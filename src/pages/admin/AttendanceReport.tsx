@@ -1,145 +1,191 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { AdminService } from "../../services/adminService";
 import { AttendanceService } from "../../services/attendanceService";
-// 👇 FIX 1: Use 'import type'
+import { getAuth } from "firebase/auth"; 
 import type { UserProfile, AttendanceRecord } from "../../types";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { useAttendanceReport } from "../../hooks/useAttendanceReport";
+
+interface ExtendedUser extends UserProfile {
+  secretaryId?: string;
+}
 
 export default function AttendanceReport() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [users, setUsers] = useState<ExtendedUser[]>([]);
   const [logs, setLogs] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const { 
+      navigateDate, updateStatus, deleteLog 
+  } = useAttendanceReport();
   
-  // Default to today's date
+  const location = useLocation();
+  // We still try to get scope from navigation, but we will override it below if needed
+  let scope = location.state?.scope || 'local';
+  
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    // 👇 FIX 2: Define loadData INSIDE useEffect to fix dependency warnings
     const loadData = async () => {
       setLoading(true);
       try {
-        // 1. Get ALL Users (The Master List)
-        const allUsers = await AdminService.getAllUsers();
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+
+        if (!currentUser) {
+           setLoading(false);
+           return;
+        }
+
+        // 🔒 SECURITY GUARDRAIL 🔒
+        // If the logged-in user is NOT the super admin, FORCE scope to 'local'.
+        // This prevents them from ever seeing the Global list.
+        const isSuperAdmin = currentUser.email === "admin@gmail.com"; 
         
-        // 2. Get Logs for the selected date
+        if (!isSuperAdmin) {
+          scope = 'local'; 
+        }
+
+        // 1. Fetch Data
+        let fetchedUsers = await AdminService.getAllUsers() as ExtendedUser[];
         const dateLogs = await AttendanceService.getRecordsByDate(selectedDate);
         
-        setUsers(allUsers);
+        // 2. Filter Logic
+        if (scope === 'local') {
+          // DEBUGGING: Check the console to see what's happening
+          console.log("Filtering for Secretary ID:", currentUser.uid);
+          
+          fetchedUsers = fetchedUsers.filter(u => {
+             // We keep the user ONLY if their secretaryId matches MINE
+             return u.secretaryId === currentUser.uid;
+          });
+        } 
+
+        setUsers(fetchedUsers);
         setLogs(dateLogs);
+        
       } catch (error) {
-        // 👇 FIX 3: Actually use the error variable so ESLint doesn't complain
-        console.error("Failed to load attendance report:", error);
+        console.error("Failed to load report:", error);
       } finally {
         setLoading(false);
       }
     };
 
     loadData();
-  }, [selectedDate]); // This is now safe because loadData is defined inside
+  }, [selectedDate]);
 
-  const handleStatusChange = async (userId: string, newStatus: 'present' | 'late' | 'absent') => {
-    try {
-      const existingLog = logs.find(l => l.userId === userId);
+  
 
-      if (existingLog) {
-        if (newStatus === 'absent') {
-          await AttendanceService.updateStatus(existingLog.id, 'absent');
-        } else {
-          await AttendanceService.updateStatus(existingLog.id, newStatus);
-        }
-      } else {
-        // Create new record (Manual Check-in)
-        if (newStatus !== 'absent') {
-            await AttendanceService.manualCheckIn(userId, selectedDate, newStatus);
-        }
-      }
+  // ... (Keep handleStatusChange and Render exactly the same) ...
+
+  // RENDER (Just the return part for context)
+  if (loading) return <div className="p-8">Loading Report...</div>;
+
+ return (
+    <div className="space-y-6 animate-in fade-in">
       
-      // We can't call loadData() here easily anymore, so we just reload the page or 
-      // duplicate the fetch logic. For simplicity, let's trigger a re-fetch by toggling date
-      // or just copy the fetch logic here.
-      // A cleaner way is to just fetch logs again:
-      const updatedLogs = await AttendanceService.getRecordsByDate(selectedDate);
-      setLogs(updatedLogs);
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-b pb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {scope === 'global' ? "🌍 Global Report" : "📍 Local Report"}
+          </h1>
+          <p className="text-sm text-gray-500">
+            {scope === 'global' ? "System-wide records" : `Managing ${users.length} local members`}
+          </p>
+        </div>
 
-    } catch (error) {
-      console.error(error);
-      alert("Failed to update status");
-    }
-  };
+        {/* DATE CONTROLS */}
+        <div className="flex items-center gap-2 bg-white p-1 border rounded-lg shadow-sm">
+          <button onClick={() => navigateDate(-1)} className="p-2 hover:bg-gray-100 rounded"><ChevronLeft size={20}/></button>
+          
+          <div className="relative">
+            <input 
+              type="date" 
+              value={selectedDate} 
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="pl-9 pr-2 py-1 outline-none font-semibold text-gray-700 bg-transparent"
+            />
+            <CalendarIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600"/>
+          </div>
 
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Daily Attendance Report</h1>
-        
-        {/* Date Picker */}
-        <input 
-          type="date" 
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-        />
+          <button onClick={() => navigateDate(1)} className="p-2 hover:bg-gray-100 rounded"><ChevronRight size={20}/></button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      {/* TABLE */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-gray-50 text-gray-600 text-sm uppercase">
-            <tr>
-              <th className="px-6 py-3">Name</th>
-              <th className="px-6 py-3">Category</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Action</th>
-            </tr>
+          <thead className="bg-gray-50 text-xs uppercase text-gray-500 font-bold">
+             <tr>
+               <th className="px-6 py-4">Name</th>
+               <th className="px-6 py-4">Current Status</th>
+               <th className="px-6 py-4 text-right">Actions</th>
+             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {loading ? (
-               <tr><td colSpan={4} className="p-8 text-center">Loading data...</td></tr>
-            ) : (
-              users.map((user) => {
-                const log = logs.find(l => l.userId === user.uid);
-                const status = log ? log.status : 'absent';
+             {users.map(user => {
+               const log = logs.find(l => l.userId === user.uid);
+               const status = log?.status || 'no-record';
 
-                return (
-                  <tr key={user.uid} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-900">{user.fullName}</td>
-                    <td className="px-6 py-4 text-gray-500 text-sm">
-                       Member
-                    </td>
-                    
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                        status === 'present' ? 'bg-green-100 text-green-700' :
-                        status === 'late' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {status}
-                      </span>
-                    </td>
+               return (
+                 <tr key={user.uid} className="hover:bg-gray-50">
+                   <td className="px-6 py-4 font-medium">{user.fullName}</td>
+                   
+                   <td className="px-6 py-4">
+                     <StatusBadge status={status} />
+                   </td>
 
-                    <td className="px-6 py-4 flex gap-2">
-                       {status !== 'present' && (
-                         <button 
-                           onClick={() => handleStatusChange(user.uid, 'present')}
-                           className="text-xs bg-green-50 text-green-600 px-2 py-1 rounded border border-green-200 hover:bg-green-100"
+                   <td className="px-6 py-4 flex justify-end gap-2">
+                     {/* QUICK TOGGLES */}
+                     <div className="flex bg-gray-100 rounded p-1">
+                       {['present', 'late', 'absent'].map((s) => (
+                         <button
+                           key={s}
+                           onClick={() => updateStatus(user.uid, s as 'present' | 'late' | 'absent')}
+                           className={`px-3 py-1 text-xs font-bold rounded capitalize ${
+                             status === s ? 'bg-white shadow text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                           }`}
                          >
-                           Mark Present
+                           {s[0]}
                          </button>
-                       )}
-                       {status !== 'absent' && (
-                         <button 
-                           onClick={() => handleStatusChange(user.uid, 'absent')}
-                           className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded border border-red-200 hover:bg-red-100"
-                         >
-                           Mark Absent
-                         </button>
-                       )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
+                       ))}
+                     </div>
+
+                     {/* DELETE BUTTON */}
+                     {log && (
+                       <button onClick={() => deleteLog(log.id)} className="p-2 text-gray-400 hover:text-red-500">
+                         <Trash2 size={16} />
+                       </button>
+                     )}
+                   </td>
+                 </tr>
+               );
+             })}
+             {users.length === 0 && <tr><td colSpan={3} className="p-8 text-center text-gray-400">No members found.</td></tr>}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+// Helper Component (Keep in same file as view)
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    'present': 'bg-green-100 text-green-700 border-green-200',
+    'late': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    'absent': 'bg-red-100 text-red-700 border-red-200',
+    'no-record': 'bg-gray-100 text-gray-500 border-gray-200'
+  };
+  
+  // Fallback to 'no-record' style if status is unknown
+  const currentStyle = styles[status] || styles['no-record'];
+
+  return (
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${currentStyle}`}>
+      {status === 'no-record' ? 'Not Checked In' : status.toUpperCase()}
+    </span>
   );
 }

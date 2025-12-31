@@ -4,21 +4,15 @@ import * as z from "zod";
 import { useNavigate } from "react-router-dom";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
+import { getAuth } from "firebase/auth"; // 👈 1. Import Auth
 
-// 1. Validation Rules
+// Validation Rules
 const memberSchema = z.object({
   fullName: z.string().min(2, "Name is too short"),
   birthdate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid birthdate" }),
-  
-  // NEW: Baptism Date (Optional, because new converts might not be baptized yet)
   baptismDate: z.string().optional(),
-
-  // UPDATED: Duty is now just a string (Free text), optional
   duty: z.string().optional(),
-
-  // NEW: Status is free text (e.g., "Regular", "Visitor", "Backslider")
   status: z.string().min(1, "Status is required"),
-
   email: z.string().email().optional().or(z.literal('')),
 });
 
@@ -34,20 +28,48 @@ export default function AddMember() {
   } = useForm<MemberFormInputs>({
     resolver: zodResolver(memberSchema),
     defaultValues: {
-      status: "Regular" // Default value to save time
+      status: "Regular"
     }
   });
 
   const onSubmit = async (data: MemberFormInputs) => {
     try {
-      await addDoc(collection(db, "users"), {
+      // 👈 2. Get Current User
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+
+      if (!currentUser) {
+        alert("You must be logged in.");
+        return;
+      }
+
+      // 👈 3. Determine if this is a "Local" or "Global" add
+      const isSuperAdmin = currentUser.email === "admin@gmail.com";
+      
+      // Prepare the data payload
+      const newMemberData = {
         ...data,
         createdAt: new Date().toISOString(),
-        role: 'student' 
-      });
+        role: 'member', // Changed from 'student' to 'member' for clarity
+        
+        // 👈 4. THE CRITICAL FIX:
+        // If I am NOT the super admin, tag this member with MY ID.
+        // This ensures they appear in my Local Dashboard.
+        secretaryId: isSuperAdmin ? null : currentUser.uid 
+      };
+
+      await addDoc(collection(db, "users"), newMemberData);
       
       alert("Member added successfully!");
-      navigate("/admin/dashboard");
+      
+      // 5. Smart Redirect
+      // If Admin, go to Admin Dashboard. If Secretary, go to Secretary Dashboard.
+      if (isSuperAdmin) {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/secretary-dashboard");
+      }
+
     } catch (error) {
       console.error(error);
       alert("Failed to add member");
@@ -70,7 +92,7 @@ export default function AddMember() {
           {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName.message}</p>}
         </div>
 
-        {/* Date Row (Birthdate + Baptism) */}
+        {/* Date Row */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Birthdate</label>
@@ -82,7 +104,6 @@ export default function AddMember() {
             {errors.birthdate && <p className="text-red-500 text-sm mt-1">{errors.birthdate.message}</p>}
           </div>
 
-          {/* NEW: Baptism Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Baptism Date (Optional)</label>
             <input
@@ -93,9 +114,8 @@ export default function AddMember() {
           </div>
         </div>
 
-        {/* Info Row (Duty + Status) */}
+        {/* Info Row */}
         <div className="grid grid-cols-2 gap-4">
-          {/* UPDATED: Duty (Free Text) */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Duty / Ministry</label>
             <input
@@ -105,7 +125,6 @@ export default function AddMember() {
             />
           </div>
 
-          {/* NEW: Status (Free Text) */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Status</label>
             <input
