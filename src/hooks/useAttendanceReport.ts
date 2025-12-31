@@ -25,7 +25,7 @@ export function useAttendanceReport() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [scope, setScope] = useState<'global' | 'local'>(location.state?.scope || 'local');
 
-  const refreshData = async () => {
+const refreshData = async () => {
     setLoading(true);
     try {
       const auth = getAuth();
@@ -33,19 +33,22 @@ export function useAttendanceReport() {
       if (!currentUser) return;
 
       const isSuperAdmin = currentUser.email === "admin@gmail.com";
+      
+      // 1. Determine the scope correctly
       const finalScope = isSuperAdmin ? (location.state?.scope || 'local') : 'local';
+      
+      // 2. ⚡️ FIX: Call setScope here so the state is actually used!
       setScope(finalScope);
 
-      // 3. CAST THE RESULT TO OUR TYPE
-      // We use 'unknown' first to force the cast if the types don't align perfectly initially
-      let fetchedUsers = (await AdminService.getAllUsers()) as unknown as ExtendedUser[];
-      const dateLogs = await AttendanceService.getRecordsByDate(selectedDate);
-
-      // 4. FILTER (No 'any' needed now because fetchedUsers is typed!)
+      // 3. Fetch data based on that scope
+      let fetchedUsers: UserProfile[];
       if (finalScope === 'local') {
-        fetchedUsers = fetchedUsers.filter((u) => u.secretaryId === currentUser.uid);
+        fetchedUsers = await AdminService.getMembersBySecretary(currentUser.uid);
+      } else {
+        fetchedUsers = await AdminService.getAllUsers();
       }
 
+      const dateLogs = await AttendanceService.getRecordsByDate(selectedDate);
       setUsers(fetchedUsers);
       setLogs(dateLogs);
     } catch (error) {

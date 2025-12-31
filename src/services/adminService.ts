@@ -117,7 +117,16 @@ export const AdminService = {
   updateStatus: async (recordId: string, newStatus: string) => {
     const recordRef = doc(db, "attendance", recordId);
     await updateDoc(recordRef, { status: newStatus });
-  }
+  },
+
+  getMembersBySecretary: async (secretaryId: string): Promise<UserProfile[]> => {
+    const q = query(
+      collection(db, "users"), 
+      where("secretaryId", "==", secretaryId)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+  },
 
   
 
