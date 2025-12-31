@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { AdminService } from "../../services/adminService";
 import { AttendanceService } from "../../services/attendanceService";
-import { UserProfile, AttendanceRecord } from "../../types";
+// 👇 FIX 1: Use 'import type'
+import type { UserProfile, AttendanceRecord } from "../../types";
 
 export default function AttendanceReport() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -12,38 +13,39 @@ export default function AttendanceReport() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    loadData();
-  }, [selectedDate]); // Reload whenever date changes
+    // 👇 FIX 2: Define loadData INSIDE useEffect to fix dependency warnings
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        // 1. Get ALL Users (The Master List)
+        const allUsers = await AdminService.getAllUsers();
+        
+        // 2. Get Logs for the selected date
+        const dateLogs = await AttendanceService.getRecordsByDate(selectedDate);
+        
+        setUsers(allUsers);
+        setLogs(dateLogs);
+      } catch (error) {
+        // 👇 FIX 3: Actually use the error variable so ESLint doesn't complain
+        console.error("Failed to load attendance report:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      // 1. Get ALL Users (The Master List)
-      const allUsers = await AdminService.getAllUsers();
-      
-      // 2. Get Logs for the selected date
-      const dateLogs = await AttendanceService.getRecordsByDate(selectedDate);
-      
-      setUsers(allUsers);
-      setLogs(dateLogs);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    loadData();
+  }, [selectedDate]); // This is now safe because loadData is defined inside
 
   const handleStatusChange = async (userId: string, newStatus: 'present' | 'late' | 'absent') => {
     try {
-      // Find if they already have a log
       const existingLog = logs.find(l => l.userId === userId);
 
-      if (existingLog && newStatus === 'absent') {
-        // If "Absent", delete the record
-        await AttendanceService.updateStatus(existingLog.id, 'absent');
-      } else if (existingLog) {
-        // Update existing record
-        await AttendanceService.updateStatus(existingLog.id, newStatus);
+      if (existingLog) {
+        if (newStatus === 'absent') {
+          await AttendanceService.updateStatus(existingLog.id, 'absent');
+        } else {
+          await AttendanceService.updateStatus(existingLog.id, newStatus);
+        }
       } else {
         // Create new record (Manual Check-in)
         if (newStatus !== 'absent') {
@@ -51,9 +53,15 @@ export default function AttendanceReport() {
         }
       }
       
-      // Refresh UI
-      await loadData();
+      // We can't call loadData() here easily anymore, so we just reload the page or 
+      // duplicate the fetch logic. For simplicity, let's trigger a re-fetch by toggling date
+      // or just copy the fetch logic here.
+      // A cleaner way is to just fetch logs again:
+      const updatedLogs = await AttendanceService.getRecordsByDate(selectedDate);
+      setLogs(updatedLogs);
+
     } catch (error) {
+      console.error(error);
       alert("Failed to update status");
     }
   };
@@ -87,7 +95,6 @@ export default function AttendanceReport() {
                <tr><td colSpan={4} className="p-8 text-center">Loading data...</td></tr>
             ) : (
               users.map((user) => {
-                // Check if this user has a log for this day
                 const log = logs.find(l => l.userId === user.uid);
                 const status = log ? log.status : 'absent';
 
@@ -95,11 +102,9 @@ export default function AttendanceReport() {
                   <tr key={user.uid} className="hover:bg-gray-50">
                     <td className="px-6 py-4 font-medium text-gray-900">{user.fullName}</td>
                     <td className="px-6 py-4 text-gray-500 text-sm">
-                       {/* You can reuse your Senior/Junior logic here if you import the helper */}
                        Member
                     </td>
                     
-                    {/* Status Badge */}
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
                         status === 'present' ? 'bg-green-100 text-green-700' :
@@ -110,7 +115,6 @@ export default function AttendanceReport() {
                       </span>
                     </td>
 
-                    {/* Action Buttons (To Fix Mistakes) */}
                     <td className="px-6 py-4 flex gap-2">
                        {status !== 'present' && (
                          <button 
