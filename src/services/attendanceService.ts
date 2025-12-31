@@ -6,7 +6,8 @@ import {
   getDocs, 
   updateDoc,
   doc,
-  limit
+  limit,
+  getDoc
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import type { AttendanceRecord } from "../types";
@@ -21,18 +22,28 @@ export const AttendanceService = {
     const existing = await this.getTodayRecord(userId, eventId);
     if (existing) throw new Error("You have already timed in.");
 
-    const now = new Date();
-    // Simple logic: Late if after 9 AM
-    const isLate = now.getHours() >= 9; 
+    // 1. Fetch the specific event to get its late threshold
+    const eventRef = doc(db, "events", eventId);
+    const eventSnap = await getDoc(eventRef);
+    const eventData = eventSnap.data();
 
-    await addDoc(collection(db, COLLECTION_NAME), {
-      userId,
-      eventId,
-      date: today,
-      timeIn: now.toISOString(),
-      timeOut: null,
-      status: isLate ? 'late' : 'present'
-    });
+    const now = new Date();
+    const currentTimeString = now.toTimeString().split(' ')[0].substring(0, 5); // Format: "HH:mm"
+
+    // 2. Compare current time with event's late threshold (e.g., "08:15")
+    // If no threshold is set, default to 'present'
+    let status: 'present' | 'late' = 'present';
+    if (eventData?.lateThreshold && currentTimeString > eventData.lateThreshold) {
+      status = 'late';
+    }
+
+      await addDoc(collection(db, COLLECTION_NAME), {
+        userId,
+        eventId,
+        date: today,
+        timeIn: now.toISOString(),
+        status: status
+      });
   },
 
   // 2. Time Out
@@ -132,6 +143,9 @@ export const AttendanceService = {
       });
     }
   }
+
+
+  
 
   
 };

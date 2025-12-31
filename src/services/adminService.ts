@@ -8,14 +8,18 @@ import {
   where,
   deleteDoc,
   orderBy,
-  getDoc
+  getDoc,
+
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 // FIX: Use 'import type' ensures no build errors
-import type { UserProfile, AppEvent } from "../types";
+import type { UserProfile, AppEvent} from "../types";
 
 const USERS_COLLECTION = "users";
 const EVENTS_COLLECTION = "events";
+
+
+
 
 export const AdminService = {
   // 1. Fetch All Users
@@ -78,6 +82,8 @@ export const AdminService = {
   async updateEvent(eventId: string, updatedData: Partial<AppEvent>) {
     const docRef = doc(db, "events", eventId);
     await updateDoc(docRef, updatedData);
-  }
+  },
+
+  
 
 };

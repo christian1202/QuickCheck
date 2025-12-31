@@ -7,25 +7,31 @@ import { AdminService } from "../../services/adminService";
 // 1. Validation Rules (The "Anti-Spaghetti" Logic)
 const eventSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters" }),
-  // Parse the date string to ensure it's valid
   date: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
   startTime: z.string().min(1, { message: "Start time is required" }),
   endTime: z.string().min(1, { message: "End time is required" }),
-  // FIX: Remove the second argument object. Just list the allowed values.
+  // 👇 FIX: Added lateThreshold to the schema so react-hook-form can track it
+  lateThreshold: z.string().min(1, { message: "Late threshold time is required" }), 
   type: z.enum(["service", "meeting", "special"]), 
 });
 
+// 👇 FIX: The type is now inferred correctly from the updated schema
 type EventFormInputs = z.infer<typeof eventSchema>;
 
 export default function CreateEvent() {
   const navigate = useNavigate();
-  
+
+
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<EventFormInputs>({
     resolver: zodResolver(eventSchema),
+    // 👇 FIX: Added a default value for the field here
+    defaultValues: {
+      lateThreshold: "09:00" 
+    }
   });
 
   const onSubmit = async (data: EventFormInputs) => {
@@ -36,8 +42,9 @@ export default function CreateEvent() {
         isActive: true, // Auto-activate new events
       });
       alert("Event created successfully!");
-      navigate("/dashboard"); // Go back to check attendance
+      navigate("/admin/events"); // Go back to manage events
     } catch (error) {
+      // 👇 FIX: Logged error to satisfy "unused variable" linter
       console.error(error);
       alert("Failed to create event");
     }
@@ -83,13 +90,20 @@ export default function CreateEvent() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">End Time</label>
-            <input
-              type="time"
-              {...register("endTime")}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            <label className="block text-sm font-medium text-red-600 mb-1">
+              Mark as "Late" After:
+            </label>
+            <input 
+              type="time" 
+              {...register("lateThreshold")} 
+              className="mt-1 block w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 shadow-sm focus:ring-2 focus:ring-red-500 outline-none"
             />
-            {errors.endTime && <p className="text-red-500 text-sm mt-1">{errors.endTime.message}</p>}
+            <p className="text-xs text-gray-500 mt-1 italic">
+              Students who check in after this time will be tagged as Late.
+            </p>
+            {errors.lateThreshold && (
+              <p className="text-red-500 text-sm mt-1">{errors.lateThreshold.message}</p>
+            )}
           </div>
         </div>
 
@@ -106,6 +120,17 @@ export default function CreateEvent() {
             <option value="special">Special Event</option>
           </select>
           {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
+        </div>
+
+        {/* End Time (Added back to ensure logic completeness) */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">End Time</label>
+          <input
+            type="time"
+            {...register("endTime")}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          />
+          {errors.endTime && <p className="text-red-500 text-sm mt-1">{errors.endTime.message}</p>}
         </div>
 
         <button
