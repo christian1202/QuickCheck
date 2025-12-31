@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext"; 
+import { Calendar } from "lucide-react"; // Import Icon
 import { 
   LogOut, 
   LayoutDashboard, 
@@ -123,6 +124,15 @@ export default function DashboardLayout() {
               >
                 <UserPlus size={20} />
                 <span>Add Member</span>
+              </Link>
+
+              <Link 
+                to="/admin/events" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors"
+              >
+                <Calendar size={20} />
+                <span>Manage Events</span>
               </Link>
             </>
           )}

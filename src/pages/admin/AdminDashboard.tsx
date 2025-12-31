@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { AdminService } from "../../services/adminService";
+import { AttendanceService } from "../../services/attendanceService";
 import type { UserProfile } from "../../types";
 import { calculateAge, getUserCategory } from "../../lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useNavigate } from "react-router-dom";
-import { AttendanceService } from "../../services/attendanceService";
+// 👇 Import the Trash Icon
+import { Trash2 } from "lucide-react";
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -22,21 +24,41 @@ export default function AdminDashboard() {
   const loadAdminData = async () => {
     try {
       const allUsers = await AdminService.getAllUsers();
-        setUsers(allUsers);
-        
-        const presentCount = await AttendanceService.getTodayStats();
-        const absentCount = allUsers.length - presentCount;
+      setUsers(allUsers);
 
-      // Dummy stats (You can connect real attendance later)
+      const presentCount = await AttendanceService.getTodayStats();
+      const totalMembers = allUsers.length;
+      const absentCount = Math.max(0, totalMembers - presentCount);
+
       setStats([
-        { name: "Present", value: presentCount }, // 👈 Use variable
-        { name: "Absent", value: absentCount },   // 👈 Use variable
+        { name: "Present", value: presentCount },
+        { name: "Absent", value: absentCount },
       ]);
       
     } catch (error) {
       console.error("Error loading admin data", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 👇 NEW: Delete Function
+  const handleDelete = async (userId: string, userName: string) => {
+    // 1. Confirm with the user
+    const confirmed = window.confirm(`Are you sure you want to delete ${userName}? This cannot be undone.`);
+    
+    if (confirmed) {
+      try {
+        // 2. Delete from Firebase
+        await AdminService.deleteUser(userId);
+        
+        // 3. Refresh the list instantly
+        await loadAdminData();
+        alert("User deleted successfully.");
+      } catch (error) {
+        console.error(error);
+        alert("Failed to delete user.");
+      }
     }
   };
 
@@ -129,21 +151,12 @@ export default function AdminDashboard() {
                   
                   return (
                     <tr key={user.uid} className="hover:bg-gray-50 transition-colors">
-                      {/* 1. Name */}
                       <td className="px-6 py-4 font-medium text-gray-900">{user.fullName || user.email}</td>
-                      
-                      {/* 2. Birthdate */}
                       <td className="px-6 py-4 text-gray-600">{user.birthdate || "N/A"}</td>
-                      
-                      {/* 3. Baptism Date */}
                       <td className="px-6 py-4 text-gray-600">
                         {user.baptismDate ? user.baptismDate : <span className="text-gray-400 italic">Not set</span>}
                       </td>
-
-                      {/* 4. Age */}
                       <td className="px-6 py-4 text-gray-600">{age !== null ? age : "-"}</td>
-                      
-                      {/* 5. Category */}
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                           category === 'Senior' ? 'bg-purple-100 text-purple-700' : 
@@ -152,11 +165,7 @@ export default function AdminDashboard() {
                           {category}
                         </span>
                       </td>
-
-                      {/* 6. Duty */}
                       <td className="px-6 py-4 text-gray-600">{user.duty || "None"}</td>
-
-                      {/* 7. Status */}
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           user.status === 'Visitor' ? 'bg-yellow-100 text-yellow-800' : 
@@ -167,13 +176,23 @@ export default function AdminDashboard() {
                         </span>
                       </td>
 
-                      {/* 8. Actions (FIXED: Moved to end) */}
-                      <td className="px-6 py-4">
+                      {/* ACTIONS COLUMN */}
+                      <td className="px-6 py-4 flex items-center gap-3">
+                        {/* Edit Button */}
                         <button 
                           onClick={() => navigate(`/admin/edit-member/${user.uid}`)}
                           className="text-blue-600 hover:text-blue-900 font-medium text-sm"
                         >
                           Edit
+                        </button>
+
+                        {/* 👇 DELETE BUTTON */}
+                        <button 
+                          onClick={() => handleDelete(user.uid, user.fullName)}
+                          className="text-red-500 hover:text-red-700 transition-colors"
+                          title="Delete User"
+                        >
+                          <Trash2 size={18} />
                         </button>
                       </td>
                     </tr>

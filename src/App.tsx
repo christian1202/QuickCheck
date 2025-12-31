@@ -9,6 +9,8 @@ import AddMember from "./pages/admin/AddMember";
 import EditMember from "./pages/admin/EditMember";
 import MyHistory from "./pages/student/MyHistory";
 import AttendanceReport from "./pages/admin/AttendanceReport";
+import ManageEvents from "./pages/admin/ManageEvents";
+import EditEvent from "./pages/admin/EditEvent"; 
 
 
 function App() {
@@ -32,6 +34,8 @@ function App() {
           <Route path="/admin/create-event" element={<CreateEvent />} />
           <Route path="/admin/add-member" element={<AddMember />} />
           <Route path="/admin/attendance-report" element={<AttendanceReport />} />
+          <Route path="/admin/events" element={<ManageEvents />} />
+          <Route path="/admin/edit-event/:id" element={<EditEvent />} />
            
            {/* 👇 HERE IT IS! The new dynamic route */}
            <Route path="/admin/edit-member/:id" element={<EditMember />} />
