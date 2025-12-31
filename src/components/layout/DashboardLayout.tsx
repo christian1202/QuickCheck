@@ -7,17 +7,19 @@ import {
   CalendarPlus, 
   UserPlus, 
   Users, 
-  Menu, // 👈 New Icon for opening menu
-  X     // 👈 New Icon for closing menu
+  Menu, 
+  X,
+  History,       // 👈 Added this
+  ClipboardList  // 👈 Added this
 } from "lucide-react"; 
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   
-  // 👇 State to track if sidebar is open or closed
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Check if user is admin
   const isAdmin = user?.email === "admin@gmail.com"; 
 
   const handleLogout = async () => {
@@ -28,7 +30,7 @@ export default function DashboardLayout() {
   return (
     <div className="flex h-screen bg-gray-50">
       
-      {/* --- MOBILE HEADER (Visible only on small screens) --- */}
+      {/* --- MOBILE HEADER --- */}
       <div className="md:hidden fixed top-0 w-full bg-white border-b border-gray-200 z-20 px-4 py-3 flex justify-between items-center">
         <h1 className="text-xl font-bold text-blue-600">QuickCheck</h1>
         <button 
@@ -49,8 +51,6 @@ export default function DashboardLayout() {
       >
         <div className="p-6 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-blue-600">QuickCheck</h1>
-          
-          {/* Close Button (Mobile Only) */}
           <button 
             onClick={() => setIsSidebarOpen(false)} 
             className="md:hidden p-1 text-gray-500 hover:bg-gray-100 rounded"
@@ -60,17 +60,18 @@ export default function DashboardLayout() {
         </div>
 
         <nav className="flex-1 px-4 space-y-2">
+          
           {/* 1. SHARED LINKS */}
           <Link 
             to="/dashboard" 
-            onClick={() => setIsSidebarOpen(false)} // Close menu when clicked
+            onClick={() => setIsSidebarOpen(false)}
             className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors"
           >
             <LayoutDashboard size={20} />
             <span>My Dashboard</span>
-            
           </Link>
 
+          {/* 👇 NEW: Student History Link */}
           <Link 
             to="/history" 
             onClick={() => setIsSidebarOpen(false)}
@@ -96,6 +97,16 @@ export default function DashboardLayout() {
                 <span>Master List</span>
               </Link>
 
+              {/* 👇 NEW: Attendance Report Link */}
+              <Link 
+                to="/admin/attendance-report" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors"
+              >
+                <ClipboardList size={20} />
+                <span>Daily Report</span>
+              </Link>
+
               <Link 
                 to="/admin/create-event" 
                 onClick={() => setIsSidebarOpen(false)}
@@ -103,12 +114,6 @@ export default function DashboardLayout() {
               >
                 <CalendarPlus size={20} />
                 <span>Create Event</span>
-              </Link>
-
-
-              <Link to="/admin/attendance-report" ... >
-                <ClipboardList size={20} /> {/* Import 'ClipboardList' from lucide-react */}
-                <span>Daily Report</span>
               </Link>
 
               <Link 
@@ -134,7 +139,7 @@ export default function DashboardLayout() {
         </div>
       </aside>
 
-      {/* --- OVERLAY (Dark background when menu is open on mobile) --- */}
+      {/* --- OVERLAY --- */}
       {isSidebarOpen && (
         <div 
           onClick={() => setIsSidebarOpen(false)}
@@ -143,7 +148,7 @@ export default function DashboardLayout() {
       )}
 
       {/* --- MAIN CONTENT AREA --- */}
-      <main className="flex-1 overflow-auto pt-16 md:pt-0"> {/* Added padding-top for mobile header */}
+      <main className="flex-1 overflow-auto pt-16 md:pt-0">
         <div className="p-8">
           <Outlet />
         </div>
