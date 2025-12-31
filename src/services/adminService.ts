@@ -100,6 +100,24 @@ export const AdminService = {
       throw error;
     }
   },
+  // 11. Delete Attendance Record
+  deleteRecord: async (recordId: string) => {
+    try {
+      const recordRef = doc(db, "attendance", recordId);
+      await deleteDoc(recordRef);
+    } catch (error) {
+      console.error("Error deleting record:", error);
+      throw error;
+    }
+  },
+
+  
+  // 12. Update Attendance Status
+  // (Optional: Ensure updateStatus is robust)
+  updateStatus: async (recordId: string, newStatus: string) => {
+    const recordRef = doc(db, "attendance", recordId);
+    await updateDoc(recordRef, { status: newStatus });
+  }
 
   
 
