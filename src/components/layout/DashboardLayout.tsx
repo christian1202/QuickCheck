@@ -1,13 +1,23 @@
+import { useState } from "react";
 import { Outlet, Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext"; // Ensure you have this hook
-import { LogOut, LayoutDashboard, CalendarPlus, UserPlus, Users } from "lucide-react"; // Icons
+import { useAuth } from "../../contexts/AuthContext"; 
+import { 
+  LogOut, 
+  LayoutDashboard, 
+  CalendarPlus, 
+  UserPlus, 
+  Users, 
+  Menu, // 👈 New Icon for opening menu
+  X     // 👈 New Icon for closing menu
+} from "lucide-react"; 
 
 export default function DashboardLayout() {
-  const { user, logout } = useAuth(); // Get current user
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+  
+  // 👇 State to track if sidebar is open or closed
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // 👇 Check if user is admin (You can also check user.role from database if available)
-  // For now, let's assume specific emails are admins, or you can add a generic check.
   const isAdmin = user?.email === "admin@gmail.com"; 
 
   const handleLogout = async () => {
@@ -17,16 +27,45 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* SIDEBAR START */}
-      <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
-        <div className="p-6">
+      
+      {/* --- MOBILE HEADER (Visible only on small screens) --- */}
+      <div className="md:hidden fixed top-0 w-full bg-white border-b border-gray-200 z-20 px-4 py-3 flex justify-between items-center">
+        <h1 className="text-xl font-bold text-blue-600">QuickCheck</h1>
+        <button 
+          onClick={() => setIsSidebarOpen(true)}
+          className="p-2 text-gray-600 hover:bg-gray-100 rounded-md"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
+
+      {/* --- SIDEBAR --- */}
+      <aside 
+        className={`
+          fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
+          md:relative md:translate-x-0 
+        `}
+      >
+        <div className="p-6 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-blue-600">QuickCheck</h1>
+          
+          {/* Close Button (Mobile Only) */}
+          <button 
+            onClick={() => setIsSidebarOpen(false)} 
+            className="md:hidden p-1 text-gray-500 hover:bg-gray-100 rounded"
+          >
+            <X size={24} />
+          </button>
         </div>
 
         <nav className="flex-1 px-4 space-y-2">
-          
-          {/* 1. SHARED LINKS (Everyone sees this) */}
-          <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors">
+          {/* 1. SHARED LINKS */}
+          <Link 
+            to="/dashboard" 
+            onClick={() => setIsSidebarOpen(false)} // Close menu when clicked
+            className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors"
+          >
             <LayoutDashboard size={20} />
             <span>My Dashboard</span>
           </Link>
@@ -38,17 +77,29 @@ export default function DashboardLayout() {
                 <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin Tools</p>
               </div>
 
-              <Link to="/admin/dashboard" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors">
+              <Link 
+                to="/admin/dashboard" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors"
+              >
                 <Users size={20} />
                 <span>Master List</span>
               </Link>
 
-              <Link to="/admin/create-event" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors">
+              <Link 
+                to="/admin/create-event" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors"
+              >
                 <CalendarPlus size={20} />
                 <span>Create Event</span>
               </Link>
 
-              <Link to="/admin/add-member" className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors">
+              <Link 
+                to="/admin/add-member" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors"
+              >
                 <UserPlus size={20} />
                 <span>Add Member</span>
               </Link>
@@ -66,12 +117,19 @@ export default function DashboardLayout() {
           </button>
         </div>
       </aside>
-      {/* SIDEBAR END */}
 
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 overflow-auto">
+      {/* --- OVERLAY (Dark background when menu is open on mobile) --- */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+        />
+      )}
+
+      {/* --- MAIN CONTENT AREA --- */}
+      <main className="flex-1 overflow-auto pt-16 md:pt-0"> {/* Added padding-top for mobile header */}
         <div className="p-8">
-          <Outlet /> {/* This is where your Dashboard/Admin pages appear */}
+          <Outlet />
         </div>
       </main>
     </div>
