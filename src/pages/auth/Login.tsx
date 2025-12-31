@@ -53,7 +53,7 @@ export default function Login() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return (
+return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md space-y-8 bg-white p-8 shadow-lg rounded-xl">
         
@@ -108,11 +108,28 @@ export default function Login() {
           <button
             type="submit"
             disabled={isLoading}
-            className="group relative flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400"
+            className="group relative flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400 transition-colors"
           >
             {isLoading ? "Signing in..." : "Sign in"}
           </button>
         </form>
+
+        {/* 👇 NEW REGISTRATION LINK SECTION 👇 */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            Don't have an account?{" "}
+            <button 
+              onClick={() => navigate("/register")} 
+              className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+            >
+              Register here
+            </button>
+          </p>
+          <p className="mt-2 text-xs text-gray-400 italic">
+            Note: Only Secretaries can register new members.
+          </p>
+        </div>
+
       </div>
     </div>
   );

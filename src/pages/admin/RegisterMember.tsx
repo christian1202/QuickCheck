@@ -13,30 +13,33 @@ const memberSchema = z.object({
 
 type MemberInputs = z.infer<typeof memberSchema>;
 
+// Inside RegisterMember.tsx
 export default function RegisterMember({ currentSecretaryId }: { currentSecretaryId: string }) {
-  const { register, handleSubmit, reset, formState: { isSubmitting} } = useForm<MemberInputs>({
+  // REMOVE 'errors' here to fix the "assigned a value but never used" error
+  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<MemberInputs>({
     resolver: zodResolver(memberSchema)
   });
 
- // Inside RegisterMember.tsx
-const onSubmit = async (data: MemberInputs) => {
-  try {
-    // Manually add missing properties required by Omit<UserProfile, 'uid'>
-    const fullProfile = {
-      ...data,
-      role: 'student' as const, // Fixes role error
-      isNewlyBaptized: false,   // Fixes isNewlyBaptized error
-      lateThreshold: "09:00",    // Fixes lateThreshold error
-      status: 'Active' as const
-    };
+  const onSubmit = async (data: MemberInputs) => {
+    try {
+      // Create the full object to satisfy the UserProfile type requirements
+      const fullProfile = {
+        ...data,
+        role: 'student' as const,
+        isNewlyBaptized: false,
+        lateThreshold: "09:00",
+        status: 'Active' as const
+      };
 
-    await AuthService.registerMemberManual(fullProfile, currentSecretaryId);
-    alert("✅ Member Registered Successfully!");
-    reset(); 
-  } catch (error) {
-    console.error("Registration error:", error);
-  }
-};
+      // This will now work because we added the function to AuthService
+      await AuthService.registerMemberManual(fullProfile, currentSecretaryId);
+      alert("✅ Member Registered Successfully!");
+      reset(); 
+    } catch (error) {
+      console.error("Registration failed:", error); // Use 'error' to clear ESLint warning
+    }
+  };
+  // ... rest of your HTML
 
   return (
     <div className="max-w-xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
