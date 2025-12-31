@@ -68,6 +68,16 @@ export default function DashboardLayout() {
           >
             <LayoutDashboard size={20} />
             <span>My Dashboard</span>
+            
+          </Link>
+
+          <Link 
+            to="/history" 
+            onClick={() => setIsSidebarOpen(false)}
+            className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors"
+          >
+            <History size={20} />
+            <span>My History</span>
           </Link>
 
           {/* 2. ADMIN ONLY LINKS */}
@@ -93,6 +103,12 @@ export default function DashboardLayout() {
               >
                 <CalendarPlus size={20} />
                 <span>Create Event</span>
+              </Link>
+
+
+              <Link to="/admin/attendance-report" ... >
+                <ClipboardList size={20} /> {/* Import 'ClipboardList' from lucide-react */}
+                <span>Daily Report</span>
               </Link>
 
               <Link 

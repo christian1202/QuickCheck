@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { AttendanceService } from "../../services/attendanceService";
-import { AttendanceRecord } from "../../types";
+// 👇 FIX 1: Added 'type' keyword here
+import type { AttendanceRecord } from "../../types";
 
 export default function MyHistory() {
   const { user } = useAuth();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -13,8 +15,13 @@ export default function MyHistory() {
       if (!user) return;
       try {
         const data = await AttendanceService.getUserHistory(user.uid);
-        // Sort by date (newest first)
-        const sorted = data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        // 👇 FIX 2: Added '|| ""' to handle possible null values safely
+        // Also added '[...data]' to create a copy before sorting (Best Practice)
+        const sorted = [...data].sort((a, b) => 
+          new Date(b.date || "").getTime() - new Date(a.date || "").getTime()
+        );
+        
         setRecords(sorted);
       } catch (error) {
         console.error(error);
@@ -58,9 +65,9 @@ export default function MyHistory() {
                     {r.status}
                   </span>
                 </td>
-                {/* Parse the ISO time to look nice */}
                 <td className="px-6 py-4 text-gray-500">
-                  {new Date(r.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {/* Handle potentially invalid dates safely */}
+                  {r.timeIn ? new Date(r.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
                 </td>
               </tr>
             ))}
