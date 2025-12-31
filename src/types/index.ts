@@ -13,8 +13,9 @@ export interface AttendanceRecord {
 export interface UserProfile {
   uid: string;
   email: string;
-  role: 'student' | 'admin';
+  role: 'secretary' | 'admin';
   fullName: string;
+  secretaryId?: string;
   
   // New Fields requested
   baptismDate?: string;      // ISO Date String

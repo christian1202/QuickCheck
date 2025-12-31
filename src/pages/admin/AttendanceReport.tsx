@@ -3,11 +3,15 @@ import { AdminService } from "../../services/adminService";
 import { AttendanceService } from "../../services/attendanceService";
 // 👇 FIX 1: Use 'import type'
 import type { UserProfile, AttendanceRecord } from "../../types";
+import { useLocation } from "react-router-dom";
 
 export default function AttendanceReport() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [logs, setLogs] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
+
+  const scope = location.state?.scope || 'local';
   
   // Default to today's date
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -69,7 +73,9 @@ export default function AttendanceReport() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Daily Attendance Report</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Daily Attendance Report
+          {scope === 'global' ? "Global System Report" : "My Local Report"}
+        </h1>
         
         {/* Date Picker */}
         <input 

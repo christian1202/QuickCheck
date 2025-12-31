@@ -84,6 +84,23 @@ export const AdminService = {
     await updateDoc(docRef, updatedData);
   },
 
+  // 10. Get Single User
+  getUser: async (userId: string): Promise<UserProfile | null> => {
+    try {
+      const userRef = doc(db, "users", userId);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        return { uid: userSnap.id, ...userSnap.data() } as UserProfile;
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      throw error;
+    }
+  },
+
   
 
 };
