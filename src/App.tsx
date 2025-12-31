@@ -2,17 +2,27 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import DashboardLayout from "./components/layout/DashboardLayout"; 
 import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 import Dashboard from "./pages/student/Dashboard";
 import CreateEvent from "./pages/admin/CreateEvent";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AddMember from "./pages/admin/AddMember";
 import EditMember from "./pages/admin/EditMember";
+import MyHistory from "./pages/student/MyHistory";
+import AttendanceReport from "./pages/admin/AttendanceReport";
+import ManageEvents from "./pages/admin/ManageEvents";
+import EditEvent from "./pages/admin/EditEvent"; 
+import RegisterMember from "./pages/admin/RegisterMember";
+import { useAuth } from "./contexts/AuthContext";
 
 
 function App() {
+
+  const { currentUser } = useAuth();
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
       {/* 🔒 START: Protected Area (Requires Login) */}
       <Route element={<ProtectedRoute />}>
@@ -21,13 +31,18 @@ function App() {
         <Route element={<DashboardLayout />}>
            
            {/* Student Pages */}
-           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/history" element={<MyHistory />} />
 
            {/* Admin Pages */}
-           <Route path="/admin/dashboard" element={<AdminDashboard />} />
-           <Route path="/admin/create-event" element={<CreateEvent />} />
-           <Route path="/admin/add-member" element={<AddMember />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/create-event" element={<CreateEvent />} />
+          <Route path="/admin/add-member" element={<AddMember />} />
+          <Route path="/admin/attendance-report" element={<AttendanceReport />} />
+          <Route path="/admin/events" element={<ManageEvents />} />
+          <Route path="/admin/edit-event/:id" element={<EditEvent />} />
+          <Route path="/admin/register-member" element={<RegisterMember currentSecretaryId={currentUser?.uid || ""} />} />
            
            {/* 👇 HERE IT IS! The new dynamic route */}
            <Route path="/admin/edit-member/:id" element={<EditMember />} />

@@ -23,6 +23,7 @@ export interface UserProfile {
   adminStatus?: string;      // The custom status admin fills out
   birthdate?: string;        // ISO Date String (YYYY-MM-DD)
   status?: string; // 👈 Add this line
+  lateThreshold: string;
  
   
   // NOTE: Age and Category are NOT stored. 
@@ -51,4 +52,20 @@ export interface AttendanceRecord {
   timeOut: string | null;
   status: 'present' | 'late' | 'absent';
   duty?: string;       // 👈 The duty they performed *for this specific event*
+}
+
+// 3. Event Creation/Update Form Inputs
+export interface EventFormInputs {
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  lateThreshold: string; // HH:mm format
+  type: 'service' | 'meeting' | 'special';
+}
+
+// 4. Combine for AdminService
+export interface AppEvent extends EventFormInputs {
+  id: string;
+  isActive: boolean;
 }
