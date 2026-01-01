@@ -42,6 +42,8 @@ export interface AppEvent {
   endTime: string;        // "21:00"
   type: 'service' | 'meeting' | 'special'; // Helps with coloring charts later
   isActive: boolean;      // Admin can manually "Close" the attendance
+  scope: 'global' | 'local';    // 'global' = all members, 'local' = secretary's members
+  secretaryId?: string; // Only for 'local' events
 }
 
 // 2. Updated Attendance Record
