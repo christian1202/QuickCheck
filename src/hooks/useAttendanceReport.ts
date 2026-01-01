@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { AdminService } from "../services/adminService";
 import { AttendanceService } from "../services/attendanceService";
 import type { UserProfile, AttendanceRecord } from "../types";
+import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
 // 1. DEFINE TYPES LOCALLY TO AVOID 'ANY'
 // This tells TypeScript: "A user is a Profile + an optional secretaryId"
@@ -21,6 +22,9 @@ export function useAttendanceReport() {
   const [users, setUsers] = useState<ExtendedUser[]>([]); 
   const [logs, setLogs] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMore, setHasMore] = useState(true);
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [scope, setScope] = useState<'global' | 'local'>(location.state?.scope || 'local');
@@ -43,9 +47,17 @@ const refreshData = async () => {
       // 3. Fetch data based on that scope
       let fetchedUsers: UserProfile[];
       if (finalScope === 'local') {
+    // Local scope just returns an array
         fetchedUsers = await AdminService.getMembersBySecretary(currentUser.uid);
+        setHasMore(false); 
       } else {
-        fetchedUsers = await AdminService.getAllUsers();
+        // Global scope returns an object { users, lastVisible }
+        // We called it 'getPaginatedUsers' in the service, so we must use that name here
+        const response = await AdminService.getPaginatedUsers(null); 
+        
+        fetchedUsers = response.users; // Extract the array
+        setLastDoc(response.lastVisible); // Save the bookmark
+        setHasMore(response.users.length === 50); 
       }
 
       const dateLogs = await AttendanceService.getRecordsByDate(selectedDate);
@@ -84,6 +96,7 @@ const refreshData = async () => {
     }
   };
 
+  // 4. DELETE LOG FUNCTION
   const deleteLog = async (logId: string) => {
     if (!window.confirm("Remove this record?")) return;
     try {
@@ -95,10 +108,23 @@ const refreshData = async () => {
     }
   };
 
+  // 5. NAVIGATE DATE FUNCTION
   const navigateDate = (days: number) => {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() + days);
     setSelectedDate(d.toISOString().split('T')[0]);
+  };
+
+  // 6. LOAD MORE USERS FOR PAGINATION
+  const loadMoreUsers = async () => {
+  if (!lastDoc || scope === 'local') return;
+
+  const { users: nextUsers, lastVisible } = await AdminService.getPaginatedUsers(lastDoc);
+  
+  // Append new users to the existing list
+  setUsers(prev => [...prev, ...nextUsers]);
+  setLastDoc(lastVisible);
+  setHasMore(nextUsers.length === 50);
   };
 
   return {
@@ -110,6 +136,8 @@ const refreshData = async () => {
     setSelectedDate,
     navigateDate,
     updateStatus,
-    deleteLog
+    deleteLog,
+    hasMore,
+    loadMoreUsers
   };
 }

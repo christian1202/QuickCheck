@@ -9,6 +9,10 @@ import {
   deleteDoc,
   orderBy,
   getDoc,
+  type QueryDocumentSnapshot, // 👈 Fix for "unexpected any"
+  type DocumentData,
+  limit,
+  startAfter
 
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -23,9 +27,39 @@ const EVENTS_COLLECTION = "events";
 
 export const AdminService = {
   // 1. Fetch All Users
-  async getAllUsers(): Promise<UserProfile[]> {
-    const snapshot = await getDocs(collection(db, USERS_COLLECTION));
-    return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+  // Returns Users AND the Last Document (to use as a bookmark)
+ getPaginatedUsers: async (lastDoc: QueryDocumentSnapshot<DocumentData> | null = null) => {
+    const pageSize = 50;
+    let q;
+
+    if (lastDoc) {
+      // Get next 50 after the last one we saw
+      q = query(
+        collection(db, USERS_COLLECTION), // 👈 Used the constant here
+        orderBy("fullName"), 
+        startAfter(lastDoc), 
+        limit(pageSize)
+      );
+    } else {
+      // Get first 50
+      q = query(
+        collection(db, USERS_COLLECTION), // 👈 Used the constant here
+        orderBy("fullName"), 
+        limit(pageSize)
+      );
+    }
+
+    const snapshot = await getDocs(q);
+    
+    // Get the last document to use as our next "bookmark"
+    const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+    
+    const users = snapshot.docs.map(doc => ({ 
+      uid: doc.id, 
+      ...doc.data() 
+    } as UserProfile));
+
+    return { users, lastVisible };
   },
 
   // 2. Create Event 
@@ -86,20 +120,10 @@ export const AdminService = {
 
   // 10. Get Single User
   getUser: async (userId: string): Promise<UserProfile | null> => {
-    try {
-      const userRef = doc(db, "users", userId);
-      const userSnap = await getDoc(userRef);
-
-      if (userSnap.exists()) {
-        return { uid: userSnap.id, ...userSnap.data() } as UserProfile;
-      } else {
-        return null;
-      }
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      throw error;
-    }
+    const userDoc = await getDoc(doc(db, USERS_COLLECTION, userId));
+    return userDoc.exists() ? { uid: userDoc.id, ...userDoc.data() } as UserProfile : null;
   },
+
   // 11. Delete Attendance Record
   deleteRecord: async (recordId: string) => {
     try {
@@ -118,15 +142,18 @@ export const AdminService = {
     const recordRef = doc(db, "attendance", recordId);
     await updateDoc(recordRef, { status: newStatus });
   },
-
+  
+  // 13. Get Members by Secretary (for 'local' scope)
   getMembersBySecretary: async (secretaryId: string): Promise<UserProfile[]> => {
     const q = query(
-      collection(db, "users"), 
+      collection(db, USERS_COLLECTION), 
       where("secretaryId", "==", secretaryId)
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
   },
+
+  
 
   
 

@@ -1,88 +1,16 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
-import { AdminService } from "../../services/adminService";
-import { AttendanceService } from "../../services/attendanceService";
-import { getAuth } from "firebase/auth"; 
-import type { UserProfile, AttendanceRecord } from "../../types";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useAttendanceReport } from "../../hooks/useAttendanceReport";
 
-interface ExtendedUser extends UserProfile {
-  secretaryId?: string;
-}
-
 export default function AttendanceReport() {
-  const [users, setUsers] = useState<ExtendedUser[]>([]);
-  const [logs, setLogs] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-
+  // 👇 WE GET ALL DATA & LOGIC FROM THE HOOK
   const { 
-      navigateDate, updateStatus, deleteLog 
+    users, logs, loading, scope, selectedDate, hasMore,
+    setSelectedDate, navigateDate, updateStatus, deleteLog, loadMoreUsers 
   } = useAttendanceReport();
-  
-  const location = useLocation();
-  // We still try to get scope from navigation, but we will override it below if needed
-  let scope = location.state?.scope || 'local';
-  
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const auth = getAuth();
-        const currentUser = auth.currentUser;
+  if (loading) return <div className="p-8 text-gray-500">Loading System...</div>;
 
-        if (!currentUser) {
-           setLoading(false);
-           return;
-        }
-
-        // 🔒 SECURITY GUARDRAIL 🔒
-        // If the logged-in user is NOT the super admin, FORCE scope to 'local'.
-        // This prevents them from ever seeing the Global list.
-        const isSuperAdmin = currentUser.email === "admin@gmail.com"; 
-        
-        if (!isSuperAdmin) {
-          scope = 'local'; 
-        }
-
-        // 1. Fetch Data
-        let fetchedUsers = await AdminService.getAllUsers() as ExtendedUser[];
-        const dateLogs = await AttendanceService.getRecordsByDate(selectedDate);
-        
-        // 2. Filter Logic
-        if (scope === 'local') {
-          // DEBUGGING: Check the console to see what's happening
-          console.log("Filtering for Secretary ID:", currentUser.uid);
-          
-          fetchedUsers = fetchedUsers.filter(u => {
-             // We keep the user ONLY if their secretaryId matches MINE
-             return u.secretaryId === currentUser.uid;
-          });
-        } 
-
-        setUsers(fetchedUsers);
-        setLogs(dateLogs);
-        
-      } catch (error) {
-        console.error("Failed to load report:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [selectedDate]);
-
-  
-
-  // ... (Keep handleStatusChange and Render exactly the same) ...
-
-  // RENDER (Just the return part for context)
-  if (loading) return <div className="p-8">Loading Report...</div>;
-
- return (
+  return (
     <div className="space-y-6 animate-in fade-in">
       
       {/* HEADER */}
@@ -96,10 +24,8 @@ export default function AttendanceReport() {
           </p>
         </div>
 
-        {/* DATE CONTROLS */}
         <div className="flex items-center gap-2 bg-white p-1 border rounded-lg shadow-sm">
           <button onClick={() => navigateDate(-1)} className="p-2 hover:bg-gray-100 rounded"><ChevronLeft size={20}/></button>
-          
           <div className="relative">
             <input 
               type="date" 
@@ -109,7 +35,6 @@ export default function AttendanceReport() {
             />
             <CalendarIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600"/>
           </div>
-
           <button onClick={() => navigateDate(1)} className="p-2 hover:bg-gray-100 rounded"><ChevronRight size={20}/></button>
         </div>
       </div>
@@ -132,13 +57,8 @@ export default function AttendanceReport() {
                return (
                  <tr key={user.uid} className="hover:bg-gray-50">
                    <td className="px-6 py-4 font-medium">{user.fullName}</td>
-                   
-                   <td className="px-6 py-4">
-                     <StatusBadge status={status} />
-                   </td>
-
+                   <td className="px-6 py-4"><StatusBadge status={status} /></td>
                    <td className="px-6 py-4 flex justify-end gap-2">
-                     {/* QUICK TOGGLES */}
                      <div className="flex bg-gray-100 rounded p-1">
                        {['present', 'late', 'absent'].map((s) => (
                          <button
@@ -152,8 +72,6 @@ export default function AttendanceReport() {
                          </button>
                        ))}
                      </div>
-
-                     {/* DELETE BUTTON */}
                      {log && (
                        <button onClick={() => deleteLog(log.id)} className="p-2 text-gray-400 hover:text-red-500">
                          <Trash2 size={16} />
@@ -163,15 +81,25 @@ export default function AttendanceReport() {
                  </tr>
                );
              })}
-             {users.length === 0 && <tr><td colSpan={3} className="p-8 text-center text-gray-400">No members found.</td></tr>}
           </tbody>
         </table>
+        
+        {/* 👇 LOAD MORE BUTTON (Only shows if there is more data) */}
+        {scope === 'global' && hasMore && (
+          <div className="p-4 flex justify-center border-t bg-gray-50">
+            <button 
+              onClick={loadMoreUsers}
+              className="px-6 py-2 bg-white border border-gray-300 rounded-full text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 hover:text-blue-600 transition-all"
+            >
+              Load Next 50 Members
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// Helper Component (Keep in same file as view)
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     'present': 'bg-green-100 text-green-700 border-green-200',
@@ -179,12 +107,8 @@ function StatusBadge({ status }: { status: string }) {
     'absent': 'bg-red-100 text-red-700 border-red-200',
     'no-record': 'bg-gray-100 text-gray-500 border-gray-200'
   };
-  
-  // Fallback to 'no-record' style if status is unknown
-  const currentStyle = styles[status] || styles['no-record'];
-
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${currentStyle}`}>
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status] || styles['no-record']}`}>
       {status === 'no-record' ? 'Not Checked In' : status.toUpperCase()}
     </span>
   );
