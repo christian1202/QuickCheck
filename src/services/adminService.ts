@@ -197,6 +197,36 @@ export const AdminService = {
     return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
   },
 
+  // OPTIMIZED FETCHING
+  getEventsForRole: async (role: 'admin' | 'secretary', userId: string) => {
+    const eventsRef = collection(db, "events");
+
+    if (role === 'admin') {
+      // Admin: Fetch EVERYTHING (Limit to recent 100 if needed for speed)
+      const q = query(eventsRef, orderBy("date", "desc"));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppEvent));
+    
+    } else {
+      // Secretary: Fetch GLOBAL + LOCAL (Parallel Requests)
+      // We do 2 small fast queries instead of 1 giant slow one
+      const globalQuery = query(eventsRef, where("scope", "==", "global"));
+      const localQuery = query(eventsRef, where("secretaryId", "==", userId));
+
+      const [globalSnap, localSnap] = await Promise.all([
+        getDocs(globalQuery),
+        getDocs(localQuery)
+      ]);
+
+      // Merge and remove duplicates (just in case)
+      const globalEvents = globalSnap.docs.map(d => ({ id: d.id, ...d.data() } as AppEvent));
+      const localEvents = localSnap.docs.map(d => ({ id: d.id, ...d.data() } as AppEvent));
+
+      return [...globalEvents, ...localEvents].sort((a, b) =>
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+    }
+  },
   
 
   

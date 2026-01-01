@@ -42,7 +42,7 @@ export default function AdminDashboard() {
       <div className="grid md:grid-cols-2 gap-6">
         {/* ... (Pie Chart code stays exactly the same) ... */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">Today's Attendance</h2>
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">Dashboard</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
