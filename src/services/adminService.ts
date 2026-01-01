@@ -12,7 +12,8 @@ import {
   type QueryDocumentSnapshot, // 👈 Fix for "unexpected any"
   type DocumentData,
   limit,
-  startAfter
+  startAfter,
+  getCountFromServer,
 
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -151,6 +152,24 @@ export const AdminService = {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+  },
+
+  // 14. Get Dashboard Stats
+  getDashboardStats: async () => {
+    try {
+      // This asks Firebase: "Just tell me the number, don't give me the data."
+      // Cost: 1 read. Speed: Instant.
+      const coll = collection(db, USERS_COLLECTION);
+      const snapshot = await getCountFromServer(coll);
+      
+      return {
+        totalUsers: snapshot.data().count,
+        // You can add other stats here later (e.g., totalAbsent)
+      };
+    } catch (error) {
+      console.error("Stats Error:", error);
+      return { totalUsers: 0 };
+    }
   },
 
   
