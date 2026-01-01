@@ -21,7 +21,8 @@ export default function AdminDashboard() {
 
   const loadAdminData = async () => {
     try {
-      const allUsers = await AdminService.getAllUsers();
+      const response = await AdminService.getPaginatedUsers(null); 
+      const allUsers = response.users;
       setUsers(allUsers);
 
       const presentCount = await AttendanceService.getTodayStats();
