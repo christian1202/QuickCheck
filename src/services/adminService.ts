@@ -154,7 +154,7 @@ export const AdminService = {
     return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
   },
 
-  // 14. Get Dashboard Stats
+  // 14. Get Dashboard Stats (ultra-efficient way)
   getDashboardStats: async () => {
     try {
       // This asks Firebase: "Just tell me the number, don't give me the data."
@@ -170,6 +170,17 @@ export const AdminService = {
       console.error("Stats Error:", error);
       return { totalUsers: 0 };
     }
+  },
+
+  // 15. Get Recent Users (last 5 signed up)
+  getRecentUsers: async () => {
+    const q = query(
+      collection(db, USERS_COLLECTION),
+      orderBy("createdAt", "desc"), // ⚠️ Requires "createdAt" field & Index
+      limit(5)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
   },
 
   
