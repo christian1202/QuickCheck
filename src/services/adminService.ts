@@ -87,8 +87,8 @@ export const AdminService = {
   },
   // 5. Delete User
   async deleteUser(userId: string) {
-    const userRef = doc(db, "users", userId);
-    await deleteDoc(userRef);
+    // Uses the constant to prevent typos
+    await deleteDoc(doc(db, USERS_COLLECTION, userId));
   },
 
   // 6. Get ALL Events (Past & Future) sorted by newest first
@@ -181,6 +181,12 @@ export const AdminService = {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+  },
+
+  // 16. Get Total User Count(very efficient and fast)
+  getTotalUserCount: async () => {
+    const snap = await getCountFromServer(collection(db, USERS_COLLECTION));
+    return snap.data().count;
   },
 
   
