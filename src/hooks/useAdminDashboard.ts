@@ -12,49 +12,88 @@ export function useAdminDashboard() {
 
   // Derived stats (Calculated on the fly)
   const seniorCount = users.filter(u => getUserCategory(calculateAge(u.birthdate)) === 'Senior').length;
-  const juniorCount = users.filter(u => getUserCategory(calculateAge(u.birthdate)) === 'Junior').length;
+    const juniorCount = users.filter(u => getUserCategory(calculateAge(u.birthdate)) === 'Junior').length;
+    
+    const [secretaries, setSecretaries] = useState<UserProfile[]>([]);
+    const [selectedSecretary, setSelectedSecretary] = useState<string | null>(null);
 
-  const loadData = async () => {
+    // ... inside useAdminDashboard hook ...
+
+    const updateStats = (total: number, present: number) => {
+        const absent = Math.max(0, total - present);
+        setAttendanceStats([
+        { name: "Present", value: present },
+        { name: "Absent", value: absent },
+        ]);
+    };
+    
+    useEffect(() => {
+        loadInitialData();
+    }, []);
+
+  const loadInitialData = async () => {
     setLoading(true);
     try {
-      // 🚀 PARALLEL FETCHING: Get Users, Total Count, and Present Count all at once
-      const [userResponse, totalRealCount, presentCount] = await Promise.all([
-        AdminService.getPaginatedUsers(null), // Get first 50 users for the list
-        AdminService.getTotalUserCount(),     // Get REAL total (e.g., 2000)
-        AttendanceService.getTodayStats()     // Get today's attendance
+      // 🚀 PARALLEL FETCHING: 4 Requests at once
+      const [userRes, totalCount, presentCount, secList] = await Promise.all([
+        AdminService.getPaginatedUsers(null),
+        AdminService.getTotalUserCount(),
+        AttendanceService.getTodayStats(),
+        AdminService.getAllSecretaries() 
       ]);
 
-      setUsers(userResponse.users);
-
-      // Fix: Calculate absent based on REAL total, not just the 50 we fetched
-      const absentCount = Math.max(0, totalRealCount - presentCount);
-
-      setAttendanceStats([
-        { name: "Present", value: presentCount },
-        { name: "Absent", value: absentCount },
-      ]);
+      // 1. Save Users
+      setUsers(userRes.users);
       
+      // 2. Save Secretaries (The fix!)
+      setSecretaries(secList); 
+
+      // 3. Update Stats (Clean helper function)
+      updateStats(totalCount, presentCount);
+
     } catch (error) {
-      console.error("Error loading admin data", error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
+    };
+    
   const handleDelete = async (userId: string, userName: string) => {
-    if (!window.confirm(`Are you sure you want to delete ${userName}? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete ${userName}?`)) return;
     
     try {
       await AdminService.deleteUser(userId);
-      await loadData(); // Refresh list
+      
+      // 👇 FIXED: Call handleFilterChange instead of 'loadData'
+      // This refreshes the current view (whether you are on Global or Secretary view)
+      await handleFilterChange(selectedSecretary || ""); 
+      
       alert("User deleted successfully.");
     } catch (error) {
       console.error(error);
       alert("Failed to delete user.");
+    }
+  };
+
+  const handleFilterChange = async (secretaryId: string) => {
+    setLoading(true);
+    try {
+      if (secretaryId === "") {
+        // RESET: User wants to see Global List
+        setSelectedSecretary(null);
+        const res = await AdminService.getPaginatedUsers(null);
+        setUsers(res.users);
+      } else {
+        // FILTER: User selected a specific secretary
+        setSelectedSecretary(secretaryId);
+        // Reuse the existing function you already have!
+        const secMembers = await AdminService.getMembersBySecretary(secretaryId);
+        setUsers(secMembers);
+      }
+    } catch (error) {
+      console.error("Filter failed:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -64,6 +103,9 @@ export function useAdminDashboard() {
     loading,
     seniorCount,
     juniorCount,
-    handleDelete
+    handleDelete,
+    secretaries,      // 👈 Export
+    selectedSecretary,// 👈 Export
+    handleFilterChange,// 👈 Export
   };
 }

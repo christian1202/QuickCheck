@@ -189,6 +189,14 @@ export const AdminService = {
     return snap.data().count;
   },
 
+  // 17. Get All Secretaries
+  getAllSecretaries: async (): Promise<UserProfile[]> => {
+    // ⚠️ Requires Index: role Ascending/Descending
+    const q = query(collection(db, USERS_COLLECTION), where("role", "==", "secretary"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+  },
+
   
 
   
