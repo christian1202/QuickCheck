@@ -44,6 +44,15 @@ export interface AppEvent {
   isActive: boolean;      // Admin can manually "Close" the attendance
   scope: 'global' | 'local';    // 'global' = all members, 'local' = secretary's members
   secretaryId?: string; // Only for 'local' events
+
+  // If null, it's a one-time event.
+  recurrence?: {
+    frequency: 'weekly';
+    days: number[]; // 0=Sun, 1=Mon, 2=Tue, 3=Wed...
+  };
+
+  // 👇 NEW: BATCHES (As discussed previously)
+  batches: string[]; // ["4:30 AM", "6:00 PM"]
 }
 
 // 2. Updated Attendance Record
