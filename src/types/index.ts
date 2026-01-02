@@ -30,7 +30,7 @@ export interface AppEvent {
   id: string;
   isActive: boolean;
   createdAt?: string;
-
+  status?: string | null;
   // Basic Info
   title: string;             // "Wednesday Prayer Meeting"
   type: 'service' | 'meeting' | 'special';

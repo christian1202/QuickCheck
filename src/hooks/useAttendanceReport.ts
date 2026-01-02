@@ -167,32 +167,44 @@ export function useAttendanceReport() {
   
   // 7. AUTO-DETECT EVENTS FOR SELECTED DATE
   const detectEvents = async () => {
-    // A. Safety checks
+    // 1. Safety Checks
     if (!selectedDate) return;
     const auth = getAuth();
     const user = auth.currentUser;
     if (!user) return;
 
     setLoading(true);
+
     try {
-      // B. Fetch the Events for this date (Schedule)
-      // Note: We removed the second argument as discussed
-      const events = await AdminService.getEventsForDate(selectedDate);
+      // 2. Run both fetches in parallel for better performance
+      //    (This is faster than awaiting them one by one)
+      const [events, savedStatuses] = await Promise.all([
+        AdminService.getEventsForDate(selectedDate),
+        AttendanceService.getAttendanceForDate(selectedDate, user.uid)
+      ]);
 
-      // C. Fetch the saved Attendance Status for this date
-      const savedStatuses = await AttendanceService.getAttendanceForDate(selectedDate, user.uid);
+      // 🕵️ DEBUG LOGS: Check your console to see if data is arriving!
+      console.log("📅 Events Found:", events);
+      console.log("💾 Saved Statuses from DB:", savedStatuses);
 
-      // D. Merge them together
-      const mergedEvents = events.map(event => ({
-        ...event,
-        // If there is a status in the database, use it. Otherwise null.
-        status: savedStatuses[event.id] || null 
-      }));
+      // 3. Merge Event Data with Attendance Status
+      const mergedEvents = events.map(event => {
+        // Check if we have a status saved for this specific event ID
+        const status = savedStatuses[event.id] || null;
+        
+        return {
+          ...event,
+          status: status 
+        };
+      });
 
-      // E. Update State
+      console.log("✨ Final Merged Data:", mergedEvents);
+
+      // 4. Update State
       setAvailableEvents(mergedEvents);
 
-      // F. Auto-select logic (Optional: Selects the first one if it's the only one)
+      // 5. Auto-select logic
+      // If there is only 1 event, select it automatically.
       if (mergedEvents.length === 1) {
         setSelectedEvent(mergedEvents[0]);
       } else {
@@ -200,7 +212,7 @@ export function useAttendanceReport() {
       }
 
     } catch (error) {
-      console.error("Auto-detect failed", error);
+      console.error("❌ Auto-detect failed:", error);
     } finally {
       setLoading(false);
     }
