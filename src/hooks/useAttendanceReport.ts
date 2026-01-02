@@ -105,31 +105,50 @@ export function useAttendanceReport() {
 
   // 🚀 OPTIMIZED UPDATE FUNCTION
  const updateStatus = async (userId: string, status: 'present' | 'late' | 'absent') => {
-    if (!selectedEvent) return;
+    
+    // A. Safety Checks
+    if (!selectedEvent) {
+      alert("Please select an event first.");
+      return;
+    }
 
-    // 1. Optimistic Update (Instant UX)
+    // B. Optimistic Update (Instant UX)
+    // We create the new log object here
     const optimisticLog: AttendanceRecord = {
-      id: `${selectedEvent.id}_${userId}`,
-      userId,
-      eventId: selectedEvent.id,
-      date: selectedDate,
-      status,
-      timestamp: new Date().toISOString(),
-      timeIn: null, 
-      timeOut: null
+       id: `${selectedEvent.id}_${userId}`, 
+       userId: userId,
+       eventId: selectedEvent.id,
+       date: selectedDate,
+       status: status, 
+       timestamp: new Date().toISOString(),
+       timeIn: new Date().toISOString(), 
+       timeOut: null
     };
 
+    // ⚡️ MAGIC FIX: Update 'logs' (the Source of Truth)
+    // The 'attendanceMap' useMemo will detect this change and update automatically.
     setLogs(prevLogs => {
-      // Remove OLD log specifically for this User+Event
-      const filtered = prevLogs.filter(l => 
-        !(l.userId === userId && l.eventId === selectedEvent.id)
+      // 1. Remove any old log for this specific user & event (Clean up old data)
+      const cleanLogs = prevLogs.filter(log => 
+        !(log.userId === userId && log.eventId === selectedEvent.id)
       );
-      return [...filtered, optimisticLog];
+      
+      // 2. Add the new log and return
+      return [...cleanLogs, optimisticLog];
     });
 
-    // 2. Background Save
-    AdminService.updateStatus(userId, status, selectedDate, selectedEvent.id)
-      .catch(err => console.error("Save failed", err));
+    // C. Save to Database (Background)
+    try {
+      await AttendanceService.markAttendance(
+        selectedDate,
+        status,    // Status 2nd
+        userId,    // UserID 3rd
+        selectedEvent.id 
+      );
+    } catch (error) {
+      console.error("Failed to save status:", error);
+      // Optional: You could trigger a refreshData() here if it fails to revert the UI
+    }
   };
 
 
@@ -218,43 +237,7 @@ export function useAttendanceReport() {
     }
   };
 
-  const handleMarkAttendance = async (newStatus: string) => {
-    // 1. Get the CURRENT USER (The one clicking the button)
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
-
-    // A. Checks
-    if (!currentUser) {
-        alert("You are not logged in.");
-        return;
-    }
-    if (!selectedEvent) {
-      alert("Please select an event first (e.g., Divine Service).");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // B. Call the Service
-      await AttendanceService.markAttendance(
-        selectedDate,
-        newStatus,
-        currentUser.uid, // ✅ FIXED: Use currentUser.uid, NOT users.uid
-        selectedEvent.id 
-      );
-
-      // C. Refresh local state
-      setAvailableEvents(prevEvents => prevEvents.map(ev => 
-        ev.id === selectedEvent.id ? { ...ev, status: newStatus } : ev
-      ));
-
-    } catch (error) {
-      console.error("Failed to mark attendance", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
   return {
     users,
     logs,
@@ -272,7 +255,8 @@ export function useAttendanceReport() {
     setSelectedEvent,
     detectEvents,
     attendanceMap,
-    handleMarkAttendance
+    
+   
     
   };
 

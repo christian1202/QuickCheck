@@ -181,7 +181,7 @@ export const AttendanceService = {
         return;
     }
 
-    await addDoc(collection(db, "attendance_logs"), {
+    await addDoc(collection(db, COLLECTION_NAME), {
         date: date,
         status: status,
         userId: userId,

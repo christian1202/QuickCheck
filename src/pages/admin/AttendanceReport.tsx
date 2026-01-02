@@ -8,7 +8,7 @@ export default function AttendanceReport() {
   const { 
     users,loading, scope, selectedDate, hasMore,
     setSelectedDate, navigateDate, loadMoreUsers,
-    availableEvents, selectedEvent, setSelectedEvent, attendanceMap, handleMarkAttendance,
+    availableEvents, selectedEvent, setSelectedEvent, attendanceMap,updateStatus
   } = useAttendanceReport();
 
   if (loading) return <div className="p-8 text-gray-500">Loading System...</div>;
@@ -38,7 +38,7 @@ export default function AttendanceReport() {
         users={users}
         attendanceMap={attendanceMap}
         selectedEventId={selectedEvent?.id} // 👈 Critical: Table uses this to filter
-        onUpdateStatus={handleMarkAttendance}
+        onUpdateStatus={updateStatus}
         hasMore={scope === 'global' && hasMore}
         onLoadMore={loadMoreUsers}
       />
