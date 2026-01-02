@@ -157,7 +157,7 @@ export const AttendanceService = {
   // Get attendance status for a specific user on a specific date
   getAttendanceForDate: async (dateString: string, userId: string) => {
       const q = query(
-          collection(db, "attendance"),
+          collection(db, "attendance_logs"),
           where("date", "==", dateString),
           where("userId", "==", userId) // Assuming you save by userId
       );
