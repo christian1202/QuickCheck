@@ -1,22 +1,36 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { AdminService } from "../../services/adminService";
-import { Save, ArrowLeft } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
+
+// 👇 Import Shared Logic & Components
+import { eventSchema,type EventFormInputs } from "../../lib/schemas";
+import { FormInput, FormSelect } from "../../components/ui/FormFields";
+import { EventRepeater } from "../../components/admin/EventRepeater";
+import type { RecurrenceData } from "../../components/admin/EventRepeater";
+import type { AppEvent } from "../../types";
 
 export default function EditEvent() {
-  const { id } = useParams(); 
+  const { id } = useParams();
   const navigate = useNavigate();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(true);
   
-  // Form State
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  // 👇 FIXED: Initialize with a valid type
-  const [type, setType] = useState("service"); 
+  // Repeater State (Separate from form because it's a complex object)
+  const [recurrence, setRecurrence] = useState<RecurrenceData>({ type: 'none', days: [] });
 
+  // 1. Setup Form with Shared Schema
+  const { 
+    register, 
+    handleSubmit, 
+    reset, 
+    formState: { errors, isSubmitting } 
+  } = useForm<EventFormInputs>({
+    resolver: zodResolver(eventSchema),
+  });
+
+  // 2. Load Data on Mount
   useEffect(() => {
     loadEvent();
   }, [id]);
@@ -26,123 +40,129 @@ export default function EditEvent() {
     try {
       const event = await AdminService.getEventById(id);
       if (event) {
-        setTitle(event.title);
-        setDate(event.date);
-        setStartTime(event.startTime);
-        setEndTime(event.endTime);
-        // Ensure we handle the type string safely
-        setType(event.type); 
+        // Populate the Form
+        reset({
+          title: event.title,
+          date: event.date,
+          startTime: event.startTime,
+          endTime: event.endTime,
+          lateThreshold: event.lateThreshold || "09:00", // Fallback if missing
+          type: event.type as "service" | "meeting" | "special", // Cast to satisfy enum
+        });
+
+        // Populate the Repeater
+        if (event.recurrence) {
+          setRecurrence({
+            type: event.recurrence.frequency,
+            days: event.recurrence.days
+          });
+        }
       }
     } catch (error) {
-      console.error(error); // 👇 FIXED: Log the error
-      alert("Error loading event");
+      console.error("Failed to load event", error);
+      alert("Error loading event details");
+      navigate("/admin/events");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // 3. Handle Update
+  const handleUpdate = async (data: EventFormInputs) => {
     if (!id) return;
 
     try {
-      await AdminService.updateEvent(id, {
-        title,
-        date,
-        startTime,
-        endTime,
-        // 👇 FIXED: Cast to the correct types expected by your interface
-        type: type as 'service' | 'meeting' | 'special'
-      });
+      // Construct Payload (Same logic as Create)
+      const payload: Partial<AppEvent> = {
+        ...data,
+        recurrence: recurrence.type === 'none' ? undefined : {
+          frequency: recurrence.type as 'weekly' | 'daily',
+          days: recurrence.days
+        }
+      };
+
+      await AdminService.updateEvent(id, payload);
+      
       alert("✅ Event Updated Successfully!");
       navigate("/admin/events");
     } catch (error) {
-      console.error(error); // 👇 FIXED: Log the error
+      console.error("Update failed", error);
       alert("Failed to update event");
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64 text-gray-500">
+        <Loader2 className="animate-spin mr-2" /> Loading Event Details...
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <button 
-        onClick={() => navigate("/admin/events")}
-        className="flex items-center text-gray-500 hover:text-gray-800 transition-colors"
-      >
-        <ArrowLeft size={20} className="mr-2" />
-        Back to Events
-      </button>
+    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+         <button 
+          onClick={() => navigate("/admin/events")}
+          className="flex items-center text-gray-500 hover:text-gray-800 transition-colors"
+        >
+          <ArrowLeft size={20} className="mr-2" />
+          Back to Schedule
+        </button>
+      </div>
 
       <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit Event</h1>
 
-        <form onSubmit={handleUpdate} className="space-y-4">
+        <form onSubmit={handleSubmit(handleUpdate)} className="space-y-6">
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Event Title</label>
-            <input 
-              required
-              type="text" 
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
+          {/* REUSABLE COMPONENTS */}
+          <FormInput label="Event Title" name="title" register={register} error={errors.title} />
+          
+          <FormInput label="Date" name="date" type="date" register={register} error={errors.date} />
 
           <div className="grid grid-cols-2 gap-4">
+            <FormInput label="Start Time" name="startTime" type="time" register={register} error={errors.startTime} />
+            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <input 
-                required
-                type="date" 
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+              <FormInput 
+                label="Mark 'Late' After" 
+                name="lateThreshold" 
+                type="time" 
+                register={register} 
+                error={errors.lateThreshold}
+                className="border-red-200 bg-red-50 focus:ring-red-500"
+                labelClass="text-red-600"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-              <select 
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-              >
-                <option value="service">Church Service</option>
-                <option value="meeting">Meeting</option>
-                {/* 👇 FIXED: Changed "event" to "special" to match your TypeScript Interface */}
-                <option value="special">Special Event</option>
-              </select>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
-              <input 
-                required
-                type="time" 
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
-              <input 
-                required
-                type="time" 
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
+          <FormSelect label="Event Type" name="type" register={register} error={errors.type}>
+             <option value="service">Church Service</option>
+             <option value="meeting">Prayer Meeting</option>
+             <option value="special">Special Event</option>
+          </FormSelect>
+
+          <FormInput label="End Time" name="endTime" type="time" register={register} error={errors.endTime} />
+
+          {/* REPEATER LOGIC */}
+          <div className="pt-4 border-t border-gray-100">
+             <EventRepeater value={recurrence} onChange={setRecurrence} />
           </div>
 
           <button 
             type="submit" 
-            className="w-full flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors mt-6"
+            disabled={isSubmitting}
+            className="w-full flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all mt-6 disabled:opacity-50"
           >
-            <Save size={20} />
-            Save Changes
+            {isSubmitting ? (
+              <>Saving Changes...</>
+            ) : (
+              <>
+                <Save size={20} /> Save Changes
+              </>
+            )}
           </button>
 
         </form>
