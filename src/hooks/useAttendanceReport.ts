@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getAuth } from "firebase/auth";
 import { useLocation } from "react-router-dom";
 import { AdminService } from "../services/adminService";
 import { AttendanceService } from "../services/attendanceService";
-import type { UserProfile, AttendanceRecord } from "../types";
+import type { UserProfile, AttendanceRecord, AppEvent } from "../types";
 import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
+
 
 // 1. DEFINE TYPES LOCALLY TO AVOID 'ANY'
 // This tells TypeScript: "A user is a Profile + an optional secretaryId"
@@ -12,16 +13,16 @@ interface ExtendedUser extends UserProfile {
   secretaryId?: string;
 }
 
-// This tells TypeScript exactly what strings are allowed
-type StatusType = 'present' | 'late' | 'absent';
+
 
 export function useAttendanceReport() {
   const location = useLocation();
   
+  
   // 2. USE THE NEW TYPE IN STATE
-  const [users, setUsers] = useState<ExtendedUser[]>([]); 
+  const [users, setUsers] = useState<ExtendedUser[]>([]);
   const [logs, setLogs] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  
 
   const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -29,7 +30,15 @@ export function useAttendanceReport() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [scope, setScope] = useState<'global' | 'local'>(location.state?.scope || 'local');
 
-const refreshData = async () => {
+  // 👇 The Auto-Detected Events for that day
+  const [availableEvents, setAvailableEvents] = useState<AppEvent[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
+
+  const [loading, setLoading] = useState(true);
+
+  
+  // 3. REFRESH DATA FUNCTION
+  const refreshData = async () => {
     setLoading(true);
     try {
       const auth = getAuth();
@@ -47,17 +56,17 @@ const refreshData = async () => {
       // 3. Fetch data based on that scope
       let fetchedUsers: UserProfile[];
       if (finalScope === 'local') {
-    // Local scope just returns an array
+        // Local scope just returns an array
         fetchedUsers = await AdminService.getMembersBySecretary(currentUser.uid);
-        setHasMore(false); 
+        setHasMore(false);
       } else {
         // Global scope returns an object { users, lastVisible }
         // We called it 'getPaginatedUsers' in the service, so we must use that name here
-        const response = await AdminService.getPaginatedUsers(null); 
+        const response = await AdminService.getPaginatedUsers(null);
         
         fetchedUsers = response.users; // Extract the array
         setLastDoc(response.lastVisible); // Save the bookmark
-        setHasMore(response.users.length === 50); 
+        setHasMore(response.users.length === 50);
       }
 
       const dateLogs = await AttendanceService.getRecordsByDate(selectedDate);
@@ -74,27 +83,74 @@ const refreshData = async () => {
     refreshData();
   }, [selectedDate]);
 
-  // 5. UPDATE STATUS FUNCTION
-  const updateStatus = async (userId: string, newStatus: StatusType) => {
-    const existingLog = logs.find(l => l.userId === userId);
-    try {
-      if (existingLog) {
-        // We cast newStatus to satisfy the service call if strictly typed
-        await AttendanceService.updateStatus(existingLog.id, newStatus);
-      } else {
-        // Don't create a record if we are marking them 'absent' on an empty log
-        if (newStatus !== 'absent') {
-          await AttendanceService.manualCheckIn(userId, selectedDate, newStatus);
-        }
-      }
+  useEffect(() => {
+    detectEvents();
+  }, [selectedDate]);
+
+
+
+
+  // 🚀 READ OPTIMIZATION: Memoized Lookup Map
+  // Instead of searching the array 1 million times, we build a "Dictionary" once.
+  // Key: "eventId_userId" -> Value: Record
+  const attendanceMap = useMemo(() => {
+    const map = new Map<string, AttendanceRecord>();
+    logs.forEach(log => {
+      // Create a unique key for every single log entry
+      const key = `${log.eventId}_${log.userId}`;
+      map.set(key, log);
+    });
+    return map;
+  }, [logs]);
+
+  // 🚀 OPTIMIZED UPDATE FUNCTION
+ const updateStatus = async (userId: string, status: 'present' | 'late' | 'absent') => {
+    
+    // A. Safety Checks
+    if (!selectedEvent) {
+      alert("Please select an event first.");
+      return;
+    }
+
+    // B. Optimistic Update (Instant UX)
+    // We create the new log object here
+    const optimisticLog: AttendanceRecord = {
+       id: `${selectedEvent.id}_${userId}`, 
+       userId: userId,
+       eventId: selectedEvent.id,
+       date: selectedDate,
+       status: status, 
+       timestamp: new Date().toISOString(),
+       timeIn: new Date().toISOString(), 
+       timeOut: null
+    };
+
+    // ⚡️ MAGIC FIX: Update 'logs' (the Source of Truth)
+    // The 'attendanceMap' useMemo will detect this change and update automatically.
+    setLogs(prevLogs => {
+      // 1. Remove any old log for this specific user & event (Clean up old data)
+      const cleanLogs = prevLogs.filter(log => 
+        !(log.userId === userId && log.eventId === selectedEvent.id)
+      );
       
-      const updatedLogs = await AttendanceService.getRecordsByDate(selectedDate);
-      setLogs(updatedLogs);
-    } catch (err) { 
-      console.error("Failed to update status:", err);
-      alert("Action failed."); 
+      // 2. Add the new log and return
+      return [...cleanLogs, optimisticLog];
+    });
+
+    // C. Save to Database (Background)
+    try {
+      await AttendanceService.markAttendance(
+        selectedDate,
+        status,    // Status 2nd
+        userId,    // UserID 3rd
+        selectedEvent.id 
+      );
+    } catch (error) {
+      console.error("Failed to save status:", error);
+      // Optional: You could trigger a refreshData() here if it fails to revert the UI
     }
   };
+
 
   // 4. DELETE LOG FUNCTION
   const deleteLog = async (logId: string) => {
@@ -117,16 +173,71 @@ const refreshData = async () => {
 
   // 6. LOAD MORE USERS FOR PAGINATION
   const loadMoreUsers = async () => {
-  if (!lastDoc || scope === 'local') return;
+    if (!lastDoc || scope === 'local') return;
 
-  const { users: nextUsers, lastVisible } = await AdminService.getPaginatedUsers(lastDoc);
+    const { users: nextUsers, lastVisible } = await AdminService.getPaginatedUsers(lastDoc);
   
-  // Append new users to the existing list
-  setUsers(prev => [...prev, ...nextUsers]);
-  setLastDoc(lastVisible);
-  setHasMore(nextUsers.length === 50);
+    // Append new users to the existing list
+    setUsers(prev => [...prev, ...nextUsers]);
+    setLastDoc(lastVisible);
+    setHasMore(nextUsers.length === 50);
   };
 
+  
+  // 7. AUTO-DETECT EVENTS FOR SELECTED DATE
+  const detectEvents = async () => {
+    // 1. Safety Checks
+    if (!selectedDate) return;
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) return;
+
+    setLoading(true);
+
+    try {
+      // 2. Run both fetches in parallel for better performance
+      //    (This is faster than awaiting them one by one)
+      const [events, savedStatuses] = await Promise.all([
+        AdminService.getEventsForDate(selectedDate),
+        AttendanceService.getAttendanceForDate(selectedDate, user.uid)
+      ]);
+
+      // 🕵️ DEBUG LOGS: Check your console to see if data is arriving!
+      console.log("📅 Events Found:", events);
+      console.log("💾 Saved Statuses from DB:", savedStatuses);
+
+      // 3. Merge Event Data with Attendance Status
+      const mergedEvents = events.map(event => {
+        // Check if we have a status saved for this specific event ID
+        const status = savedStatuses[event.id] || null;
+        
+        return {
+          ...event,
+          status: status 
+        };
+      });
+
+      console.log("✨ Final Merged Data:", mergedEvents);
+
+      // 4. Update State
+      setAvailableEvents(mergedEvents);
+
+      // 5. Auto-select logic
+      // If there is only 1 event, select it automatically.
+      if (mergedEvents.length === 1) {
+        setSelectedEvent(mergedEvents[0]);
+      } else {
+        setSelectedEvent(null);
+      }
+
+    } catch (error) {
+      console.error("❌ Auto-detect failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  
   return {
     users,
     logs,
@@ -138,6 +249,17 @@ const refreshData = async () => {
     updateStatus,
     deleteLog,
     hasMore,
-    loadMoreUsers
+    loadMoreUsers,
+    availableEvents, // Pass this to the UI to show "No Event" or the List
+    selectedEvent,
+    setSelectedEvent,
+    detectEvents,
+    attendanceMap,
+    
+   
+    
   };
+
+
+
 }

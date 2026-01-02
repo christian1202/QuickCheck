@@ -9,16 +9,18 @@ import {
   deleteDoc,
   orderBy,
   getDoc,
-  type QueryDocumentSnapshot, // 👈 Fix for "unexpected any"
+  type QueryDocumentSnapshot, 
   type DocumentData,
   limit,
   startAfter,
   getCountFromServer,
+  setDoc,
 
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 // FIX: Use 'import type' ensures no build errors
-import type { UserProfile, AppEvent} from "../types";
+import type { UserProfile, AppEvent } from "../types";
+import type { User } from "firebase/auth";
 
 const USERS_COLLECTION = "users";
 const EVENTS_COLLECTION = "events";
@@ -64,8 +66,21 @@ export const AdminService = {
   },
 
   // 2. Create Event 
-  async createEvent(eventData: Omit<AppEvent, 'id'>) {
-    await addDoc(collection(db, EVENTS_COLLECTION), eventData);
+  createEvent: async (eventData: Partial<AppEvent>, user: User) => {
+    // 1. Determine Scope automatically
+    // TypeScript now knows that 'user' definitely has an 'email' and 'uid' property
+    const isGlobal = user.email === "admin@gmail.com";
+    
+    // 2. Construct the Payload
+    const payload = {
+      ...eventData,
+      scope: isGlobal ? 'global' : 'local',
+      // If it's local, we MUST save the secretary's ID.
+      secretaryId: isGlobal ? null : user.uid, 
+      createdAt: new Date().toISOString()
+    };
+
+    return await addDoc(collection(db, "events"), payload);
   },
 
   // 3. Close Event
@@ -139,11 +154,37 @@ export const AdminService = {
   
   // 12. Update Attendance Status
   // (Optional: Ensure updateStatus is robust)
-  updateStatus: async (recordId: string, newStatus: string) => {
-    const recordRef = doc(db, "attendance", recordId);
-    await updateDoc(recordRef, { status: newStatus });
+  // 🚀 WRITE OPTIMIZATION: O(1) Complexity
+  // This handles 1 million writes as fast as 1 write.
+  updateStatus: async (
+    userId: string, 
+    status: 'present' | 'late' | 'absent', 
+    date: string,
+    eventId: string
+  ) => {
+    // 🛑 Safety Guard
+    if (!eventId || !userId) throw new Error("Missing Critical IDs");
+
+    // 1. Deterministic ID: "event123_userABC"
+    // This physically prevents Event A from overwriting Event B.
+    const compositeId = `${eventId}_${userId}`; 
+
+    const payload = {
+      userId,
+      eventId, // Foreign Key
+      status,
+      date,
+      timestamp: new Date().toISOString(),
+      // Ensure nulls are saved if fields are missing to keep schema consistent
+      timeIn: null,
+      timeOut: null
+    };
+
+    // 2. "Blind Write" (Merge)
+    // No database reads required. Lightning fast.
+    await setDoc(doc(db, "attendance", compositeId), payload, { merge: true });
   },
-  
+
   // 13. Get Members by Secretary (for 'local' scope)
   getMembersBySecretary: async (secretaryId: string): Promise<UserProfile[]> => {
     const q = query(
@@ -227,7 +268,53 @@ export const AdminService = {
       );
     }
   },
+
+  // 18. Get Events for a Specific Date (with Recurrence Handling)
+ getEventsForDate: async (dateString: string) => {
+    const targetDate = new Date(dateString);
+    const dayOfWeek = targetDate.getDay(); // 0 = Sun, 5 = Fri
+
+    // 1. Query A: Events specifically on this DATE (e.g. "2026-01-02")
+    const dateQuery = query(
+        collection(db, "events"), 
+        where("date", "==", dateString),
+        where("isActive", "==", true)
+    );
+
+    // 2. Query B: Events repeating on this DAY (e.g. "Every Friday")
+    const repeatQuery = query(
+        collection(db, "events"),
+        where("recurrence.days", "array-contains", dayOfWeek),
+        where("isActive", "==", true)
+    );
+
+    // Run both queries in parallel
+    const [dateSnapshot, repeatSnapshot] = await Promise.all([
+        getDocs(dateQuery),
+        getDocs(repeatQuery)
+    ]);
+
+    // 🚀 THE FIX: Use a Map to Deduplicate
+    const uniqueEventsMap = new Map<string, AppEvent>();
+
+    // Helper to add docs to the map
+    const addToMap = (docs: QueryDocumentSnapshot<DocumentData>[]) => {
+        docs.forEach(doc => {
+            const data = doc.data();
+            uniqueEventsMap.set(doc.id, { id: doc.id, ...data } as AppEvent);
+        });
+    };
+
+    addToMap(dateSnapshot.docs);
+    addToMap(repeatSnapshot.docs);
+
+    // Convert Map back to Array
+   return Array.from(uniqueEventsMap.values());
+   
   
+  }
+
+
 
   
 
