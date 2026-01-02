@@ -172,6 +172,24 @@ export const AttendanceService = {
       return statusMap;
   },
 
+  // Mark attendance (used in bulk operations)
+  markAttendance: async (date: string, status: string, userId: string, eventId: string) => {
+    
+    // Safety check
+    if (!eventId) {
+        console.error("❌ Attempted to save attendance without Event ID");
+        return;
+    }
+
+    await addDoc(collection(db, "attendance_logs"), {
+        date: date,
+        status: status,
+        userId: userId,
+        eventId: eventId, // <--- 1. ADD THIS LINE
+        timestamp: new Date().toISOString()
+    });
+  },
+
 
   
 

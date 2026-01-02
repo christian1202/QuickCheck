@@ -218,6 +218,43 @@ export function useAttendanceReport() {
     }
   };
 
+  const handleMarkAttendance = async (newStatus: string) => {
+    // 1. Get the CURRENT USER (The one clicking the button)
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+
+    // A. Checks
+    if (!currentUser) {
+        alert("You are not logged in.");
+        return;
+    }
+    if (!selectedEvent) {
+      alert("Please select an event first (e.g., Divine Service).");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // B. Call the Service
+      await AttendanceService.markAttendance(
+        selectedDate,
+        newStatus,
+        currentUser.uid, // ✅ FIXED: Use currentUser.uid, NOT users.uid
+        selectedEvent.id 
+      );
+
+      // C. Refresh local state
+      setAvailableEvents(prevEvents => prevEvents.map(ev => 
+        ev.id === selectedEvent.id ? { ...ev, status: newStatus } : ev
+      ));
+
+    } catch (error) {
+      console.error("Failed to mark attendance", error);
+    } finally {
+      setLoading(false);
+    }
+  };
   return {
     users,
     logs,
@@ -235,6 +272,7 @@ export function useAttendanceReport() {
     setSelectedEvent,
     detectEvents,
     attendanceMap,
+    handleMarkAttendance
     
   };
 
