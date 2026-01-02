@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useForm} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
 import { AdminService } from "../../services/adminService";
@@ -9,18 +8,9 @@ import { EventRepeater } from "../../components/admin/EventRepeater";
 import type { RecurrenceData } from "../../components/admin/EventRepeater";
 import type { AppEvent } from "../../types"; // Import AppEvent for casting
 import { FormInput, FormSelect } from "../../components/ui/FormFields";
+import { eventSchema, type EventFormInputs } from "../../lib/schemas";
 
-// --- 1. SCHEMA DEFINITION ---
-const eventSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters"),
-  date: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
-  startTime: z.string().min(1, "Start time is required"),
-  endTime: z.string().min(1, "End time is required"),
-  lateThreshold: z.string().min(1, "Late threshold is required"),
-  type: z.enum(["service", "meeting", "special"]), 
-});
 
-type EventFormInputs = z.infer<typeof eventSchema>;
 
 // --- 2. MAIN COMPONENT ---
 export default function CreateEvent() {
