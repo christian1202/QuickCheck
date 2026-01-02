@@ -132,7 +132,7 @@ export function useAttendanceReport() {
       .catch(err => console.error("Save failed", err));
   };
 
-  
+
   // 4. DELETE LOG FUNCTION
   const deleteLog = async (logId: string) => {
     if (!window.confirm("Remove this record?")) return;
@@ -174,7 +174,7 @@ export function useAttendanceReport() {
       if (!user) return;
 
       // 🚀 Call the smart service
-      const events = await AdminService.getEventsForDate(new Date(selectedDate), user.uid);
+      const events = await AdminService.getEventsForDate(selectedDate);
       setAvailableEvents(events);
 
       // ✨ AUTO-SELECT MAGIC

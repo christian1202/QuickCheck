@@ -14,7 +14,6 @@ import {
   limit,
   startAfter,
   getCountFromServer,
-  type QuerySnapshot,
   setDoc,
 
 } from "firebase/firestore";
@@ -271,68 +270,51 @@ export const AdminService = {
   },
 
   // 18. Get Events for a Specific Date (with Recurrence Handling)
-  getEventsForDate: async (targetDate: Date, secretaryId: string) => {
-    const dayIndex = targetDate.getDay(); // 0-6 (Sun-Sat)
-    const dateString = targetDate.toISOString().split('T')[0]; // "2023-10-26"
-    
-    const eventsRef = collection(db, "events");
+ getEventsForDate: async (dateString: string) => {
+    const targetDate = new Date(dateString);
+    const dayOfWeek = targetDate.getDay(); // 0 = Sun, 5 = Fri
 
-    // We need to run 3 fast queries in parallel and merge them.
-    // This is much faster than downloading everything.
-    
-    const [
-      // 1. One-time Global events for this specific date
-      globalOneTime,
-      // 2. One-time Local events for this specific date
-      localOneTime,
-      // 3. RECURRING events that happen on this day of the week
-      // (This requires an array-contains index on 'recurrence.days')
-      recurring
-    ] = await Promise.all([
-      // Query 1
-      getDocs(query(eventsRef, 
-        where("scope", "==", "global"), 
-        where("date", "==", dateString)
-      )),
-      // Query 2
-      getDocs(query(eventsRef, 
-        where("secretaryId", "==", secretaryId), 
-        where("date", "==", dateString)
-      )),
-      // Query 3 (The Repeater Magic 🪄)
-      getDocs(query(eventsRef, 
-        where("recurrence.days", "array-contains", dayIndex)
-      ))
+    // 1. Query A: Events specifically on this DATE (e.g. "2026-01-02")
+    const dateQuery = query(
+        collection(db, "events"), 
+        where("date", "==", dateString),
+        where("isActive", "==", true)
+    );
+
+    // 2. Query B: Events repeating on this DAY (e.g. "Every Friday")
+    const repeatQuery = query(
+        collection(db, "events"),
+        where("recurrence.days", "array-contains", dayOfWeek),
+        where("isActive", "==", true)
+    );
+
+    // Run both queries in parallel
+    const [dateSnapshot, repeatSnapshot] = await Promise.all([
+        getDocs(dateQuery),
+        getDocs(repeatQuery)
     ]);
 
-    // Merge results
-    const results: AppEvent[] = [];
-    
-    // Helper to push unique events
-    const addDocs = (snapshot: QuerySnapshot<DocumentData>) => {
-      snapshot.forEach((doc) => {
-        // 👇 Fix 2: Cast as Omit<AppEvent, 'id'>. 
-        // This tells TS: "This data has everything EXCEPT the ID" (since ID is on the doc, not in the data).
-        const data = doc.data() as Omit<AppEvent, 'id'>;
-        
-        // Filter recurring events manually
-        if (data.recurrence) {
-           if (data.scope === 'local' && data.secretaryId !== secretaryId) return;
-        }
+    // 🚀 THE FIX: Use a Map to Deduplicate
+    const uniqueEventsMap = new Map<string, AppEvent>();
 
-        // 👇 Now this works perfectly. 
-        // We take the data (without ID) and add the ID from the document.
-        results.push({ id: doc.id, ...data });
-      });
+    // Helper to add docs to the map
+    const addToMap = (docs: QueryDocumentSnapshot<DocumentData>[]) => {
+        docs.forEach(doc => {
+            const data = doc.data();
+            uniqueEventsMap.set(doc.id, { id: doc.id, ...data } as AppEvent);
+        });
     };
 
-    addDocs(globalOneTime);
-    addDocs(localOneTime);
-    addDocs(recurring);
+    addToMap(dateSnapshot.docs);
+    addToMap(repeatSnapshot.docs);
 
-    return results;
-  }
+    // Convert Map back to Array
+   return Array.from(uniqueEventsMap.values());
+   
   
+  }
+
+
 
   
 
