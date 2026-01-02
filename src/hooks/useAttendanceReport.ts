@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getAuth } from "firebase/auth";
 import { useLocation } from "react-router-dom";
 import { AdminService } from "../services/adminService";
 import { AttendanceService } from "../services/attendanceService";
 import type { UserProfile, AttendanceRecord, AppEvent } from "../types";
 import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
+
 
 // 1. DEFINE TYPES LOCALLY TO AVOID 'ANY'
 // This tells TypeScript: "A user is a Profile + an optional secretaryId"
@@ -86,47 +87,52 @@ export function useAttendanceReport() {
     detectEvents();
   }, [selectedDate]);
 
+
+
+
+  // 🚀 READ OPTIMIZATION: Memoized Lookup Map
+  // Instead of searching the array 1 million times, we build a "Dictionary" once.
+  // Key: "eventId_userId" -> Value: Record
+  const attendanceMap = useMemo(() => {
+    const map = new Map<string, AttendanceRecord>();
+    logs.forEach(log => {
+      // Create a unique key for every single log entry
+      const key = `${log.eventId}_${log.userId}`;
+      map.set(key, log);
+    });
+    return map;
+  }, [logs]);
+
   // 🚀 OPTIMIZED UPDATE FUNCTION
  const updateStatus = async (userId: string, status: 'present' | 'late' | 'absent') => {
-  if (!selectedEvent) {
-    alert("Please select an event first!");
-    return;
-  }
+    if (!selectedEvent) return;
 
-  // 👇 FIX: Cast this object as 'AttendanceRecord' to satisfy the state type
-  // AND ensure all required fields are present (even if null)
-  const optimisticLog: AttendanceRecord = {
-    id: `temp-${userId}`, 
-    userId,
-    eventId: selectedEvent.id,
-    date: selectedDate,
-    status,
-    timestamp: new Date().toISOString(),
-    
-    // 👇 ADD THESE MISSING FIELDS
-    timeIn: null, 
-    timeOut: null,
-    // Add batch/duty if your type requires them (optional based on your interface)
-    batch: undefined, 
-    dutySnapshot: undefined,
-    markedBy: 'admin' 
+    // 1. Optimistic Update (Instant UX)
+    const optimisticLog: AttendanceRecord = {
+      id: `${selectedEvent.id}_${userId}`,
+      userId,
+      eventId: selectedEvent.id,
+      date: selectedDate,
+      status,
+      timestamp: new Date().toISOString(),
+      timeIn: null, 
+      timeOut: null
+    };
+
+    setLogs(prevLogs => {
+      // Remove OLD log specifically for this User+Event
+      const filtered = prevLogs.filter(l => 
+        !(l.userId === userId && l.eventId === selectedEvent.id)
+      );
+      return [...filtered, optimisticLog];
+    });
+
+    // 2. Background Save
+    AdminService.updateStatus(userId, status, selectedDate, selectedEvent.id)
+      .catch(err => console.error("Save failed", err));
   };
 
-  setLogs(prevLogs => {
-    const filtered = prevLogs.filter(l => 
-      !(l.userId === userId && l.eventId === selectedEvent.id)
-    );
-    return [...filtered, optimisticLog];
-  });
-
-  try {
-    // ... backend call ...
-  } catch (error) {
-    console.error("Update failed:", error);
-    // ... error handling ...
-  }
-};
-
+  
   // 4. DELETE LOG FUNCTION
   const deleteLog = async (logId: string) => {
     if (!window.confirm("Remove this record?")) return;
@@ -202,6 +208,7 @@ export function useAttendanceReport() {
     selectedEvent,
     setSelectedEvent,
     detectEvents,
+    attendanceMap,
     
   };
 
