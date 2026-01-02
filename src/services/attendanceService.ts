@@ -152,7 +152,25 @@ export const AttendanceService = {
   deleteRecord: async (recordId: string) => {
     const ref = doc(db, "attendance", recordId);
     await deleteDoc(ref);
-  }
+  },
+
+  // Get attendance status for a specific user on a specific date
+  getAttendanceForDate: async (dateString: string, userId: string) => {
+      const q = query(
+          collection(db, "attendance"),
+          where("date", "==", dateString),
+          where("userId", "==", userId) // Assuming you save by userId
+      );
+      const snapshot = await getDocs(q);
+      
+      // Return a map for easy lookup: { "eventId1": "present", "eventId2": "absent" }
+      const statusMap: Record<string, string> = {};
+      snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          statusMap[data.eventId] = data.status; 
+      });
+      return statusMap;
+  },
 
 
   
