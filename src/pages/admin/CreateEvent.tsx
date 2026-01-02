@@ -1,144 +1,117 @@
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { useForm} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate } from "react-router-dom";
+import { getAuth } from "firebase/auth";
 import { AdminService } from "../../services/adminService";
+import { EventRepeater } from "../../components/admin/EventRepeater";
+import type { RecurrenceData } from "../../components/admin/EventRepeater";
+import type { AppEvent } from "../../types"; // Import AppEvent for casting
+import { FormInput, FormSelect } from "../../components/ui/FormFields";
 
-// 1. Validation Rules (The "Anti-Spaghetti" Logic)
+// --- 1. SCHEMA DEFINITION ---
 const eventSchema = z.object({
-  title: z.string().min(3, { message: "Title must be at least 3 characters" }),
-  date: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
-  startTime: z.string().min(1, { message: "Start time is required" }),
-  endTime: z.string().min(1, { message: "End time is required" }),
-  // 👇 FIX: Added lateThreshold to the schema so react-hook-form can track it
-  lateThreshold: z.string().min(1, { message: "Late threshold time is required" }), 
+  title: z.string().min(3, "Title must be at least 3 characters"),
+  date: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date"),
+  startTime: z.string().min(1, "Start time is required"),
+  endTime: z.string().min(1, "End time is required"),
+  lateThreshold: z.string().min(1, "Late threshold is required"),
   type: z.enum(["service", "meeting", "special"]), 
 });
 
-// 👇 FIX: The type is now inferred correctly from the updated schema
 type EventFormInputs = z.infer<typeof eventSchema>;
 
+// --- 2. MAIN COMPONENT ---
 export default function CreateEvent() {
   const navigate = useNavigate();
+  const [recurrence, setRecurrence] = useState<RecurrenceData>({ type: 'none', days: [] });
 
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<EventFormInputs>({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<EventFormInputs>({
     resolver: zodResolver(eventSchema),
-    // 👇 FIX: Added a default value for the field here
-    defaultValues: {
-      lateThreshold: "09:00" 
-    }
+    defaultValues: { lateThreshold: "09:00" }
   });
 
+  // --- 3. LOGIC HANDLER ---
   const onSubmit = async (data: EventFormInputs) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      alert("You must be logged in to create an event.");
+      return;
+    }
+
     try {
-      // Create the event in Firebase
-      await AdminService.createEvent({
+      // 👇 FIX: Explicitly cast the payload to Partial<AppEvent>
+      // This tells TS: "Trust me, I know 'daily' is valid now."
+      const eventPayload: Partial<AppEvent> = {
         ...data,
-        isActive: true, // Auto-activate new events
-      });
+        isActive: true,
+        recurrence: recurrence.type === 'none' ? undefined : {
+          frequency: recurrence.type as 'weekly' | 'daily',
+          days: recurrence.days
+        }
+      };
+
+      await AdminService.createEvent(eventPayload, user);
+
       alert("Event created successfully!");
-      navigate("/admin/events"); // Go back to manage events
+      navigate("/admin/events"); 
     } catch (error) {
-      // 👇 FIX: Logged error to satisfy "unused variable" linter
-      console.error(error);
-      alert("Failed to create event");
+      console.error("Create event failed:", error);
+      alert("Failed to create event. Check console.");
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-100">
+    <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-100 animate-in fade-in">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Create New Event</h1>
       
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Title */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Event Title</label>
-          <input
-            {...register("title")}
-            placeholder="e.g. Wednesday Prayer Meeting"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-          {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title.message}</p>}
-        </div>
+        
+        {/* REUSABLE INPUTS */}
+        <FormInput label="Event Title" name="title" register={register} error={errors.title} placeholder="e.g. Wednesday Prayer Meeting" />
+        
+        <FormInput label="Date" name="date" type="date" register={register} error={errors.date} />
 
-        {/* Date */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Date</label>
-          <input
-            type="date"
-            {...register("date")}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-          {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date.message}</p>}
-        </div>
-
-        {/* Time Row */}
         <div className="grid grid-cols-2 gap-4">
+          <FormInput label="Start Time" name="startTime" type="time" register={register} error={errors.startTime} />
+          
           <div>
-            <label className="block text-sm font-medium text-gray-700">Start Time</label>
-            <input
-              type="time"
-              {...register("startTime")}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            />
-            {errors.startTime && <p className="text-red-500 text-sm mt-1">{errors.startTime.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-red-600 mb-1">
-              Mark as "Late" After:
-            </label>
-            <input 
+            <FormInput 
+              label="Mark 'Late' After" 
+              name="lateThreshold" 
               type="time" 
-              {...register("lateThreshold")} 
-              className="mt-1 block w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 shadow-sm focus:ring-2 focus:ring-red-500 outline-none"
+              register={register} 
+              error={errors.lateThreshold} 
+              className="border-red-200 bg-red-50 focus:ring-red-500"
+              labelClass="text-red-600"
             />
-            <p className="text-xs text-gray-500 mt-1 italic">
-              Students who check in after this time will be tagged as Late.
-            </p>
-            {errors.lateThreshold && (
-              <p className="text-red-500 text-sm mt-1">{errors.lateThreshold.message}</p>
-            )}
+            <p className="text-xs text-gray-500 mt-1 italic">Late check-in threshold.</p>
           </div>
         </div>
 
-        {/* Type Dropdown */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Event Type</label>
-          <select
-            {...register("type")}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          >
+        {/* Note: I updated FormSelect to accept children for flexibility */}
+        <FormSelect label="Event Type" name="type" register={register} error={errors.type}>
             <option value="">Select a type...</option>
             <option value="service">Sunday Service</option>
             <option value="meeting">Prayer Meeting</option>
             <option value="special">Special Event</option>
-          </select>
-          {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
-        </div>
+        </FormSelect>
 
-        {/* End Time (Added back to ensure logic completeness) */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">End Time</label>
-          <input
-            type="time"
-            {...register("endTime")}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-          {errors.endTime && <p className="text-red-500 text-sm mt-1">{errors.endTime.message}</p>}
+        <FormInput label="End Time" name="endTime" type="time" register={register} error={errors.endTime} />
+
+        <div className="pt-4 border-t border-gray-100">
+           <EventRepeater value={recurrence} onChange={setRecurrence} />
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50 mt-4"
         >
-          {isSubmitting ? "Creating..." : "Create Event"}
+          {isSubmitting ? "Creating Schedule..." : "Create Event"}
         </button>
       </form>
     </div>

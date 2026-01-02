@@ -47,7 +47,7 @@ export interface AppEvent {
 
   // If null, it's a one-time event.
   recurrence?: {
-    frequency: 'weekly';
+    frequency: 'weekly' | 'daily';
     days: number[]; // 0=Sun, 1=Mon, 2=Tue, 3=Wed...
   };
 
