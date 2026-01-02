@@ -80,6 +80,8 @@ export interface AttendanceRecord {
   date: string;              // Redundant but useful for fast queries "2025-10-20"
   dutySnapshot?: string;     // What duty did they perform *today*?
   markedBy?: 'system' | 'admin' | 'secretary';
+  // ISO Timestamp of when the record was created/updated
+  timestamp?: string;
 }
 
 // ⚠️ DEPRECATION NOTICE:

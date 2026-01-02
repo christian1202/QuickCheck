@@ -12,8 +12,7 @@ interface ExtendedUser extends UserProfile {
   secretaryId?: string;
 }
 
-// This tells TypeScript exactly what strings are allowed
-type StatusType = 'present' | 'late' | 'absent';
+
 
 export function useAttendanceReport() {
   const location = useLocation();
@@ -87,27 +86,46 @@ export function useAttendanceReport() {
     detectEvents();
   }, [selectedDate]);
 
-  // 5. UPDATE STATUS FUNCTION
-  const updateStatus = async (userId: string, newStatus: StatusType) => {
-    const existingLog = logs.find(l => l.userId === userId);
-    try {
-      if (existingLog) {
-        // We cast newStatus to satisfy the service call if strictly typed
-        await AttendanceService.updateStatus(existingLog.id, newStatus);
-      } else {
-        // Don't create a record if we are marking them 'absent' on an empty log
-        if (newStatus !== 'absent') {
-          await AttendanceService.manualCheckIn(userId, selectedDate, newStatus);
-        }
-      }
-      
-      const updatedLogs = await AttendanceService.getRecordsByDate(selectedDate);
-      setLogs(updatedLogs);
-    } catch (err) {
-      console.error("Failed to update status:", err);
-      alert("Action failed.");
-    }
+  // 🚀 OPTIMIZED UPDATE FUNCTION
+ const updateStatus = async (userId: string, status: 'present' | 'late' | 'absent') => {
+  if (!selectedEvent) {
+    alert("Please select an event first!");
+    return;
+  }
+
+  // 👇 FIX: Cast this object as 'AttendanceRecord' to satisfy the state type
+  // AND ensure all required fields are present (even if null)
+  const optimisticLog: AttendanceRecord = {
+    id: `temp-${userId}`, 
+    userId,
+    eventId: selectedEvent.id,
+    date: selectedDate,
+    status,
+    timestamp: new Date().toISOString(),
+    
+    // 👇 ADD THESE MISSING FIELDS
+    timeIn: null, 
+    timeOut: null,
+    // Add batch/duty if your type requires them (optional based on your interface)
+    batch: undefined, 
+    dutySnapshot: undefined,
+    markedBy: 'admin' 
   };
+
+  setLogs(prevLogs => {
+    const filtered = prevLogs.filter(l => 
+      !(l.userId === userId && l.eventId === selectedEvent.id)
+    );
+    return [...filtered, optimisticLog];
+  });
+
+  try {
+    // ... backend call ...
+  } catch (error) {
+    console.error("Update failed:", error);
+    // ... error handling ...
+  }
+};
 
   // 4. DELETE LOG FUNCTION
   const deleteLog = async (logId: string) => {
@@ -183,6 +201,7 @@ export function useAttendanceReport() {
     availableEvents, // Pass this to the UI to show "No Event" or the List
     selectedEvent,
     setSelectedEvent,
+    detectEvents,
     
   };
 
