@@ -15,6 +15,7 @@ import {
   startAfter,
   getCountFromServer,
   type QuerySnapshot,
+  setDoc,
 
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -154,11 +155,31 @@ export const AdminService = {
   
   // 12. Update Attendance Status
   // (Optional: Ensure updateStatus is robust)
-  updateStatus: async (recordId: string, newStatus: string) => {
-    const recordRef = doc(db, "attendance", recordId);
-    await updateDoc(recordRef, { status: newStatus });
+  updateStatus: async (
+    userId: string, 
+    status: 'present' | 'late' | 'absent', 
+    date: string,
+    eventId: string
+  ) => {
+    // 🚀 1. Create a Deterministic ID (Composite Key)
+    // Example ID: "event123_userABC"
+    // This guarantees 1 user can ONLY have 1 record per event. No duplicates possible.
+    const compositeId = `${eventId}_${userId}`;
+    
+    const payload = {
+      userId,
+      status,
+      date,
+      eventId,
+      timestamp: new Date().toISOString()
+    };
+
+    // 🚀 2. "Blind Write" (setDoc with merge: true)
+    // We don't need to read/check first. 
+    // If it exists, it updates. If not, it creates.
+    // Cost: 1 Write (0 Reads). 50% Cheaper.
+    await setDoc(doc(db, "attendance", compositeId), payload, { merge: true });
   },
-  
   // 13. Get Members by Secretary (for 'local' scope)
   getMembersBySecretary: async (secretaryId: string): Promise<UserProfile[]> => {
     const q = query(
