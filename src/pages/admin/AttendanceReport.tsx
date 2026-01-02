@@ -3,11 +3,12 @@ import { AttendanceHeader } from "../../components/admin/attendance/AttendanceHe
 import { EventSelector } from "../../components/admin/attendance/EventSelector";
 import { AttendanceTable } from "../../components/admin/attendance/AttendanceTable";
 
+
 export default function AttendanceReport() {
   const { 
-    users, logs, loading, scope, selectedDate, hasMore,
+    users,loading, scope, selectedDate, hasMore,
     setSelectedDate, navigateDate, updateStatus, loadMoreUsers,
-    availableEvents, selectedEvent, setSelectedEvent
+    availableEvents, selectedEvent, setSelectedEvent, attendanceMap
   } = useAttendanceReport();
 
   if (loading) return <div className="p-8 text-gray-500">Loading System...</div>;
@@ -35,7 +36,7 @@ export default function AttendanceReport() {
       {/* 3. TABLE (Passes the ID to solve the 2-event problem) */}
       <AttendanceTable 
         users={users}
-        logs={logs}
+        attendanceMap={attendanceMap}
         selectedEventId={selectedEvent?.id} // 👈 Critical: Table uses this to filter
         onUpdateStatus={updateStatus}
         hasMore={scope === 'global' && hasMore}

@@ -1,22 +1,24 @@
-import type { UserProfile, AttendanceLog } from "../../../types";
+import type { UserProfile,AttendanceRecord } from "../../../types";
 
 interface Props {
   users: UserProfile[];
-  logs: AttendanceLog[];
   selectedEventId: string | undefined;
   onUpdateStatus: (userId: string, status: 'present' | 'late' | 'absent') => void;
   // Optional props for pagination
   onLoadMore?: () => void;
-  hasMore?: boolean;
+    hasMore?: boolean;
+    attendanceMap: Map<string, AttendanceRecord>; // 👈 Receive Map instead of Array
+  
 }
 
 export function AttendanceTable({ 
-  users, 
-  logs, 
+  users,  
   selectedEventId, 
   onUpdateStatus, 
   onLoadMore, 
-  hasMore 
+    hasMore,
+    attendanceMap,
+  
 }: Props) {
 
   return (
@@ -32,10 +34,13 @@ export function AttendanceTable({
           </thead>
           <tbody className="divide-y divide-gray-100">
             {users.map(user => {
-              // Find log specifically for THIS event
-              const log = logs.find(l => l.userId === user.uid && l.eventId === selectedEventId);
-              const status = log?.status || 'no-record';
-              const isDisabled = !selectedEventId;
+                // 🚀 INSTANT LOOKUP (O(1))
+                // No searching. We just ask: "Do we have a log for 'eventA_john'?"
+                const uniqueKey = `${selectedEventId}_${user.uid}`;
+                const log = attendanceMap.get(uniqueKey); // 👈 Instant result
+                
+                const status = log?.status || 'no-record';
+                const isDisabled = !selectedEventId;
 
               return (
                 <tr key={user.uid} className="hover:bg-gray-50">
