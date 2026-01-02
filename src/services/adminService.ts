@@ -18,7 +18,8 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 // FIX: Use 'import type' ensures no build errors
-import type { UserProfile, AppEvent} from "../types";
+import type { UserProfile, AppEvent } from "../types";
+import type { User } from "firebase/auth";
 
 const USERS_COLLECTION = "users";
 const EVENTS_COLLECTION = "events";
@@ -64,8 +65,21 @@ export const AdminService = {
   },
 
   // 2. Create Event 
-  async createEvent(eventData: Omit<AppEvent, 'id'>) {
-    await addDoc(collection(db, EVENTS_COLLECTION), eventData);
+  createEvent: async (eventData: Partial<AppEvent>, user: User) => {
+    // 1. Determine Scope automatically
+    // TypeScript now knows that 'user' definitely has an 'email' and 'uid' property
+    const isGlobal = user.email === "admin@gmail.com";
+    
+    // 2. Construct the Payload
+    const payload = {
+      ...eventData,
+      scope: isGlobal ? 'global' : 'local',
+      // If it's local, we MUST save the secretary's ID.
+      secretaryId: isGlobal ? null : user.uid, 
+      createdAt: new Date().toISOString()
+    };
+
+    return await addDoc(collection(db, "events"), payload);
   },
 
   // 3. Close Event
