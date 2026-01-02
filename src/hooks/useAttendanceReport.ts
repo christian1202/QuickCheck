@@ -167,22 +167,36 @@ export function useAttendanceReport() {
   
   // 7. AUTO-DETECT EVENTS FOR SELECTED DATE
   const detectEvents = async () => {
+    // A. Safety checks
+    if (!selectedDate) return;
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) return;
+
     setLoading(true);
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (!user) return;
-
-      // 🚀 Call the smart service
+      // B. Fetch the Events for this date (Schedule)
+      // Note: We removed the second argument as discussed
       const events = await AdminService.getEventsForDate(selectedDate);
-      setAvailableEvents(events);
 
-      // ✨ AUTO-SELECT MAGIC
-      // If there is only 1 event today, automatically select it.
-      if (events.length === 1) {
-        setSelectedEvent(events[0]);
+      // C. Fetch the saved Attendance Status for this date
+      const savedStatuses = await AttendanceService.getAttendanceForDate(selectedDate, user.uid);
+
+      // D. Merge them together
+      const mergedEvents = events.map(event => ({
+        ...event,
+        // If there is a status in the database, use it. Otherwise null.
+        status: savedStatuses[event.id] || null 
+      }));
+
+      // E. Update State
+      setAvailableEvents(mergedEvents);
+
+      // F. Auto-select logic (Optional: Selects the first one if it's the only one)
+      if (mergedEvents.length === 1) {
+        setSelectedEvent(mergedEvents[0]);
       } else {
-        setSelectedEvent(null); // Let them choose if there are multiple
+        setSelectedEvent(null);
       }
 
     } catch (error) {
